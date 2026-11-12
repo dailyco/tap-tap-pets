@@ -117,6 +117,12 @@ function Price({ n, can, right, y }: { n: number; can: boolean; right: number; y
   );
 }
 
+/** a tool's level and what the next one gives, in `w` px: tighter, then without its unit, when the numbers grow long */
+function gainLine(lv: string, now: string, next: string, unit: string, w: number) {
+  const tries = [`${lv}  +${now} > +${next}${unit}`, `${lv} +${now} > +${next}${unit}`, `${lv} +${now} > +${next}`];
+  return tries.find((s) => textW(s, 3) <= w) ?? tries[2];
+}
+
 export function Shop({ g, frame }: { g: Game; frame: number }) {
   const L = g.set.lang;
   const def = petOf(g.p.pet);
@@ -134,7 +140,7 @@ export function Shop({ g, frame }: { g: Game; frame: number }) {
             {r.el}
             <FitIcon name={tool.icon} box={60} x={r.x + 12} y={r.y + 12} />
             <Label s={t(L, tool.name)} px={textW(t(L, tool.name), 4) <= r.w - 16 - textWidth(fmt(cost), 4) - 48 - 90 ? 4 : 3} x={r.x + 90} y={r.y + 14} />
-            <Label s={`${t(L, "lv", { n: lv + 1 })}  +${fmtRate(tool.value(lv) * mult)} > +${fmtRate(tool.value(lv + 1) * mult)}${unit}`} px={3} x={r.x + 90} y={r.y + 52} color={UI.dim} />
+            <Label s={gainLine(t(L, "lv", { n: lv + 1 }), fmtRate(tool.value(lv) * mult), fmtRate(tool.value(lv + 1) * mult), unit, r.w - 90 - 16)} px={3} x={r.x + 90} y={r.y + 52} color={UI.dim} />
             <Price n={cost} can={g.p.coins >= cost} right={r.x + r.w - 16} y={r.y + 16} />
           </span>
         );

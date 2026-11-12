@@ -17,18 +17,35 @@ test("abilities on coins a second", () => {
 });
 
 test("abilities on coins a tap", () => {
-  expect(perTap(freshSlot("cat"), 0).coins).toBe(1.5);
-  expect(perTap(freshSlot("mungge"), 0).coins).toBe(1);
-  expect(tapBase(freshSlot("mochi"))).toBe(1.25);
-  expect(tapBase(freshSlot("upa"))).toBe(1);
-  expect(perTap({ ...freshSlot("cat"), tools: [0, 3] }, 0).coins).toBe(7.5);
+  expect(perTap(freshSlot("cat"), 0).coins).toBe(3);
+  expect(perTap(freshSlot("mungge"), 0).coins).toBe(2);
+  expect(tapBase(freshSlot("mochi"))).toBe(2.5);
+  expect(tapBase(freshSlot("upa"))).toBe(2);
+  expect(perTap({ ...freshSlot("cat"), tools: [0, 3] }, 0).coins).toBe(21);
+});
+
+test("a tap upgrade costs half an auto one at every level", () => {
+  for (const id of ["cat", "upa", "mungge", "mochi"] as const) {
+    const [sec, tap] = petOf(id).tools;
+    for (let l = 0; l < 40; l++) expect(tap.cost(l) * 2).toBe(sec.cost(l));
+  }
+});
+
+test("a tap pays twice a second's coins at the same level, and each level adds twice as much", () => {
+  for (const id of ["cat", "upa", "mungge", "mochi"] as const) {
+    const [sec, tap] = petOf(id).tools;
+    for (let l = 0; l < 40; l++) {
+      expect(tap.value(l)).toBe(2 * sec.value(l));
+      expect(tap.value(l + 1) - tap.value(l)).toBe(2 * (sec.value(l + 1) - sec.value(l)));
+    }
+  }
 });
 
 test("upa jackpot is about 1 in 100, x5, and the same every time", () => {
   let hits = 0;
   for (let f = 0; f < 20_000; f++) {
     const r = perTap(freshSlot("upa"), f);
-    if (r.jackpot) { hits++; expect(r.coins).toBe(5); } else expect(r.coins).toBe(1);
+    if (r.jackpot) { hits++; expect(r.coins).toBe(10); } else expect(r.coins).toBe(2);
   }
   expect(hits).toBeGreaterThan(140);
   expect(hits).toBeLessThan(260);
@@ -41,7 +58,7 @@ test("mochi: all coins +25% and a 5% x5 jackpot", () => {
   let hits = 0;
   for (let f = 0; f < 20_000; f++) {
     const r = perTap(freshSlot("mochi"), f);
-    if (r.jackpot) { hits++; expect(r.coins).toBe(6.25); } else expect(r.coins).toBe(1.25);
+    if (r.jackpot) { hits++; expect(r.coins).toBe(12.5); } else expect(r.coins).toBe(2.5);
   }
   expect(hits).toBeGreaterThan(850);
   expect(hits).toBeLessThan(1150);
@@ -52,10 +69,10 @@ test("tools: each level's gain grows (about x1.6), doubles at every tenth level,
   const [sec, tap] = petOf("cat").tools;
   const lv = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
   expect(lv.map(sec.value)).toEqual([1, 2, 4, 7, 12, 20, 33, 54, 88, 143, 464, 752]);
-  expect(lv.map(tap.value)).toEqual([1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 288, 466]);
-  expect(lv.slice(0, 7).map(sec.cost)).toEqual([20, 40, 80, 160, 320, 640, 1280]);
-  expect(lv.slice(0, 7).map(tap.cost)).toEqual([15, 30, 60, 120, 240, 480, 960]);
-  expect([sec.value(20), tap.value(20), tap.value(30)]).toEqual([(28657 - 1) * 4, 17711 * 4, 2178309 * 8]);
+  expect(lv.map(tap.value)).toEqual([2, 4, 8, 14, 24, 40, 66, 108, 176, 286, 928, 1504]);
+  expect(lv.slice(0, 7).map(sec.cost)).toEqual([40, 80, 160, 320, 640, 1280, 2560]);
+  expect(lv.slice(0, 7).map(tap.cost)).toEqual([20, 40, 80, 160, 320, 640, 1280]);
+  expect([sec.value(20), tap.value(20), tap.value(30)]).toEqual([(28657 - 1) * 4, 2 * (28657 - 1) * 4, 2 * (3524578 - 1) * 8]);
 });
 
 test("a level pays back slower than the one before, but a tenth level pays back faster (and ten levels slower)", () => {
@@ -94,7 +111,7 @@ test("two hours of greedy play stay finite and fit on screen", () => {
 
 test("tool costs and names", () => {
   const t = petOf("cat").tools;
-  expect([t[0].cost(0), t[0].cost(1), t[1].cost(0), t[1].cost(1)]).toEqual([20, 40, 15, 30]);
+  expect([t[0].cost(0), t[0].cost(1), t[1].cost(0), t[1].cost(1)]).toEqual([40, 80, 20, 40]);
   expect(t.map((x) => [x.kind, x.name])).toEqual([["sec", "tool.cat.sec"], ["tap", "tool.cat.tap"]]);
   expect(petOf("mochi").tools[1].name).toBe("tool.mochi.tap");
 });

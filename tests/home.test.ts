@@ -102,13 +102,13 @@ test("slots keep their own coins", () => {
   let g = drive(makeInitial(loaded({ slots: [cat84, null, null] })), { 5: { click: CONTINUE_BTN }, 15: { click: SLOT_CARDS[0] }, 30: { click: PET_CENTER }, 40: { click: PET_CENTER }, 60: { click: SAVE_BTN }, 80: { click: ASK_HOME } }, 100);
   expect(g.phase).toBe("home");
   expect(g.homeView).toBe("main");
-  expect(g.slots[0]?.coins).toBe(84 + 2 * 1.5 + 1);
+  expect(g.slots[0]?.coins).toBe(84 + 2 * 3 + 1);
   g = drive(g, { 100: { click: NEW_BTN }, 110: { click: SLOT_CARDS[1] }, 125: { click: PET_BUY[0] } }, 30, 100);
   expect(g.cur).toBe(1);
   expect(g.p.coins).toBe(0);
   g = drive(g, { 130: { click: SAVE_BTN }, 150: { click: ASK_HOME }, 170: { click: CONTINUE_BTN }, 185: { click: SLOT_CARDS[0] } }, 60, 130);
   expect(g.cur).toBe(0);
-  expect(g.p.coins).toBe(84 + 2 * 1.5 + 1);
+  expect(g.p.coins).toBe(84 + 2 * 3 + 1);
 });
 
 test("language tabs: pick one, picking it again changes nothing", () => {

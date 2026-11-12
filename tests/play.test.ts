@@ -70,7 +70,7 @@ test("going home saves the account too", () => {
 });
 
 test("shop rows are the pet's tools", () => {
-  const mungge: SlotData = { ...freshSlot("mungge"), coins: 20 };
+  const mungge: SlotData = { ...freshSlot("mungge"), coins: 40 };
   let g = playing({ slots: [mungge, null, null], account: { ...FRESH_ACCOUNT, pets: ["cat", "mungge"] } });
   g = drive(g, { 21: { keys: ["s"] }, 30: { click: rowBox(0) } }, 20, 20);
   expect(g.p.tools).toEqual([1, 0]);
@@ -83,7 +83,7 @@ test("upa jackpot taps", () => {
   let jack = 40, plain = 40;
   while (hash((jack + 1) * 31 + 7) >= 0.01 || !quiet(jack)) jack++;
   while (hash((plain + 1) * 31 + 7) < 0.01 || !quiet(plain)) plain++;
-  for (const [f, coins, big] of [[jack, 5, true], [plain, 1, false]] as const) {
+  for (const [f, coins, big] of [[jack, 10, true], [plain, 2, false]] as const) {
     let g = playing({ slots: [freshSlot("upa"), null, null], account: { ...FRESH_ACCOUNT, pets: ["cat", "upa"] } });
     g = drive(g, {}, f - 20, 20);
     const before = g.p.coins;

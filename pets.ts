@@ -29,13 +29,15 @@ const boost = (lv: number) => Math.pow(2, Math.floor(lv / 10));
  *  but ten levels together cost about 4 times what they earn more than the ten before: coins never run away (two hours of
  *  greedy play: some 50B a second) */
 const price = (first: number) => (lv: number) => Math.round(first * Math.pow(2, lv));
-/** coins a second: 1, 2, 4, 7, 12, 20, 33, 54, 88, 143, then 464 (x2) ... for 20, 40, 80, 160 ... coins */
+/** coins a second: 1, 2, 4, 7, 12, 20, 33, 54, 88, 143, then 464 (x2) ... for 40, 80, 160, 320 ... coins */
 const secTool = (pet: PetId): ToolDef => ({
-  kind: "sec", name: `tool.${pet}.sec` as Key, icon: `tool-${pet}-sec`, value: (lv) => (fib(lv + 3) - 1) * boost(lv), cost: price(20),
+  kind: "sec", name: `tool.${pet}.sec` as Key, icon: `tool-${pet}-sec`, value: (lv) => (fib(lv + 3) - 1) * boost(lv), cost: price(40),
 });
-/** coins a tap: 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, then 288 (x2) ... for 15, 30, 60, 120 ... coins */
+/** coins a tap: twice a second's coins at the same level, so each level adds twice as much too, for half the price
+ *  (tapping pays more than leaving it be): 2, 4, 8, 14, 24, 40, 66, 108, 176, 286, then 928 (x2) ... for 20, 40, 80,
+ *  160 ... coins (two hours of greedy play at 10 taps a second stay under a trillion a second) */
 const tapTool = (pet: PetId): ToolDef => ({
-  kind: "tap", name: `tool.${pet}.tap` as Key, icon: `tool-${pet}-tap`, value: (lv) => fib(lv + 2) * boost(lv), cost: price(15),
+  kind: "tap", name: `tool.${pet}.tap` as Key, icon: `tool-${pet}-tap`, value: (lv) => 2 * (fib(lv + 3) - 1) * boost(lv), cost: price(20),
 });
 const pet = (id: PetId, price: number, mult: { sec: number; tap: number }, jackpot = 0): PetDef =>
   ({ id, name: `pet.${id}` as Key, ability: `ability.${id}` as Key, price, tools: [secTool(id), tapTool(id)], mult, jackpot });
