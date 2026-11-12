@@ -39,6 +39,8 @@ test("fixed names from the spec", () => {
   expect(t("en", "ability.mochi")).toBe("ALL COINS +25%\n5% X5 JACKPOT");
   expect(t("ko", "ability.mungge")).toBe("초당 코인 +25%");
   expect(t("ko", "pet.unknown")).toBe("???");
+  expect(["cat", "upa", "mungge", "mochi"].map((p) => t("ko", `tool.${p}.speed` as never))).toEqual(["방울", "물레방아", "바람개비", "여의주"]);
+  expect(["cat", "upa", "mungge", "mochi"].map((p) => t("en", `tool.${p}.speed` as never))).toEqual(["BELL", "WATER WHEEL", "PINWHEEL", "DRAGON PEARL"]);
   expect(t("ko", "title")).toBe("TAP TAP PETS");
   expect(t("en", "title")).toBe("TAP TAP PETS");
 });

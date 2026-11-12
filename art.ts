@@ -56,6 +56,11 @@ const TOOL_ICONS: Record<string, string[]> = {
   "tool-mungge-tap": ["....y.....", "....y.....", "y..yyy..y.", ".yyyyyyy..", "..yyyyy...", ".yy...yy..", "y.......y."],
   "tool-mochi-sec": ["..nnnnnnnn..", ".nAAAAAAAAn.", ".nhyyhyyyhn.", "..yyhyyhyy..", ".yyyyyyyyyy.", "yhyyyhyyyyyh", "nnnnyyyynnnn", "YYYYyyyyYYYY", "nnnnnyynnnnn", "nAnnnnnnnnAn", "nnnnnnnnnnnn", "y.YYYYYYYY.y"],
   "tool-mochi-tap": ["g.........", "gg........", "ggg..g....", "gegg.gg...", "geegggeg..", "geeeggeeg.", ".geeeeeeeg", "..gggggggg"],
+  // the speed tools: a bell, a water wheel, a pinwheel, a dragon's pearl
+  "tool-cat-speed": ["....rr....", "...rllr...", "...yyyy...", ".yyhhyyyy.", "yyhhyyyyyy", "yhhyyyyyyy", "YYYYYYYYYY", "yyyykkyyyy", "yyykkkkyyy", ".yyyyyyyy.", "..YYYYYY.."],
+  "tool-upa-speed": ["...nnnn...", ".nn.nn.nn.", ".n..nn..n.", "n...nn...n", "nnnnnnnnnn", "n...nn...n", ".n..nn..n.", ".nn.nn.nn.", "..tnnnnt..", "tttttttttt"],
+  "tool-mungge-speed": ["rr.....tt", "rrr...ttt", ".rrr.ttt.", "..rrwtt..", "...www...", "..yywgg..", ".yyy.ggg.", "yyy...ggg", "yy.....gg", "....n....", "....n....", "....n...."],
+  "tool-mochi-speed": ["...yyyy...", "..yhhhhy..", ".yhwwwwhy.", "yhwwwwsshy", "yhwwwssshy", "yhwwsssshy", "yhwssssshy", ".yhsssshy.", "..yhhhhy..", "...yyyy..."],
   sun: ["....y.....", ".y.....y..", "...yyy....", "..yhyyy...", "y.yhyyy.y.", "..yyyyy...", "...yyy....", ".y.....y..", "....y....."],
   trash: ["...kkkk...", ".kkkkkkkk.", "..mmmmmm..", "..mkmmkm..", "..mkmmkm..", "..mkmmkm..", "..mmmmmm.."],
 };
@@ -211,12 +216,15 @@ export const textWidth = (str: string, px: number) => (str.length * 6 - 1) * px;
 export const fmtRate = (n: number) => (n >= 1000 || Number.isInteger(n) ? fmt(n) : n.toFixed(1));
 
 /** a number on screen, cut (never rounded up, so coins never look like more than they are): under a thousand whole;
- *  from a thousand three figures with K, M or B (1.18K, 12.3K, 123K, 1.23M), trailing zeros dropped (1.2K, 3K) */
-export function fmt(n: number): string {
+ *  from a thousand `figures` figures (3; the HUD's coins 4) with K, M, B, T or Q (1.18K, 12.3K, 123K, 1.23M; 1.374T),
+ *  trailing zeros dropped (1.2K, 3K) */
+export function fmt(n: number, figures = 3): string {
   if (n < 1000) return String(Math.floor(n));
-  const [unit, size] = n >= 1e12 ? ["T", 1e12] : n >= 1e9 ? ["B", 1e9] : n >= 1e6 ? ["M", 1e6] : ["K", 1e3];
+  const [unit, size] = n >= 1e15 ? ["Q", 1e15] : n >= 1e12 ? ["T", 1e12] : n >= 1e9 ? ["B", 1e9] : n >= 1e6 ? ["M", 1e6] : ["K", 1e3];
   const v = n / (size as number);
-  const places = v >= 100 ? 0 : v >= 10 ? 1 : 2;
-  const cut = Math.floor(v * 10 ** places + 1e-9) / 10 ** places;
+  const places = (v >= 100 ? 0 : v >= 10 ? 1 : 2) + figures - 3;
+  // cut in whole steps of the last figure shown (10, 100 ... coins: exact), not v * 10^places, whose float error
+  // needed a nudge that pushed a coin short of 1000T up to "1000T"
+  const cut = Math.floor(n / (size / 10 ** places)) / 10 ** places;
   return `${String(cut.toFixed(places)).replace(/\.?0+$/, (m) => (m.startsWith(".") || places ? "" : m))}${unit}`;
 }

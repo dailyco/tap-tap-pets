@@ -5,7 +5,7 @@ test("old main save becomes a cat in slot 1", () => {
   const disk: Record<string, unknown> = { main: { coins: 84, earned: 300, tools: { pickaxe: 2, gloves: 1 }, owned: ["cap", "tee"], wear: { hat: "cap", body: "tee", acc: null } } };
   const l = loadFrom((k) => disk[k] ?? null);
   expect(l.migrated).toBe(true);
-  expect(l.slots[0]).toEqual({ pet: "cat", coins: 84, earned: 300, tools: [2, 1], owned: ["cap", "tee"], wear: { hat: "cap", body: "tee", acc: null }, playFrames: 0 });
+  expect(l.slots[0]).toEqual({ pet: "cat", coins: 84, earned: 300, tools: [2, 1, 0], owned: ["cap", "tee"], wear: { hat: "cap", body: "tee", acc: null }, playFrames: 0 });
   expect(l.slots[1]).toBeNull();
   expect(l.slots[2]).toBeNull();
   expect(l.account).toEqual(FRESH_ACCOUNT);
@@ -59,3 +59,10 @@ test("cat is always owned, sunFrames stays inside a day", () => {
   expect(checkAccount({ sun: 2, sunFrames: 100, pets: [] }).pets).toEqual(["cat"]);
   expect(checkAccount({ sun: 2, sunFrames: 999_999, pets: ["cat"] }).sunFrames).toBe(0);
 });
+
+test("a slot saved with two tools loads with the speed tool at its start", () => {
+  expect(checkSlot({ pet: "upa", coins: 5, tools: [3, 2] })?.tools).toEqual([3, 2, 0]);
+  expect(checkSlot({ pet: "upa", coins: 5, tools: [3, 2, 4] })?.tools).toEqual([3, 2, 4]);
+  expect(freshSlot("cat").tools).toEqual([0, 0, 0]);
+});
+

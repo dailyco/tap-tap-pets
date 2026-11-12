@@ -13,8 +13,8 @@ export interface SlotData {
   pet: PetId;
   coins: number;
   earned: number;
-  /** the pet's two tools' levels: [coins a second, coins a tap] */
-  tools: [number, number];
+  /** the pet's three tools' levels: [coins a second, coins a tap, payouts a second] */
+  tools: [number, number, number];
   owned: string[];
   wear: Wear;
   playFrames: number;
@@ -30,7 +30,7 @@ export interface Settings { autosave: boolean; sound: boolean; lang: Lang }
 export const SUN_FRAMES = 72_000;
 
 export const freshSlot = (pet: PetId): SlotData =>
-  ({ pet, coins: 0, earned: 0, tools: [0, 0], owned: [], wear: { hat: null, body: null, acc: null }, playFrames: 0 });
+  ({ pet, coins: 0, earned: 0, tools: [0, 0, 0], owned: [], wear: { hat: null, body: null, acc: null }, playFrames: 0 });
 export const FRESH_ACCOUNT: Account = { sun: 0, sunFrames: 0, pets: ["cat"] };
 export const DEFAULT_SETTINGS: Settings = { autosave: true, sound: true, lang: "ko" };
 
@@ -59,7 +59,7 @@ export function checkSlot(raw: unknown): SlotData | null {
   const tools = Array.isArray(r.tools) ? r.tools : [];
   const owned = ownedOf(r.owned);
   return {
-    pet: r.pet as PetId, coins: amount(r.coins), earned: amount(r.earned), tools: [whole(tools[0]), whole(tools[1])],
+    pet: r.pet as PetId, coins: amount(r.coins), earned: amount(r.earned), tools: [whole(tools[0]), whole(tools[1]), whole(tools[2])],
     owned, wear: wearOf(r.wear, owned), playFrames: whole(r.playFrames),
   };
 }
@@ -71,7 +71,7 @@ export function migrateMain(raw: unknown): SlotData | null {
   const tools = obj(r.tools) ?? {};
   const owned = ownedOf(r.owned);
   return {
-    pet: "cat", coins: amount(r.coins), earned: amount(r.earned), tools: [whole(tools.pickaxe), whole(tools.gloves)],
+    pet: "cat", coins: amount(r.coins), earned: amount(r.earned), tools: [whole(tools.pickaxe), whole(tools.gloves), 0],
     owned, wear: wearOf(r.wear, owned), playFrames: 0,
   };
 }

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { fmt, fmtRate } from "../art";
-import { PETS, hash, perSecond, perTap, petOf, tapBase } from "../pets";
+import { PETS, hash, paysPerSecond, perPayout, perSecond, perTap, petOf, tapBase } from "../pets";
 import { freshSlot } from "../state";
 
 test("catalog: ids, order and sunlight prices", () => {
@@ -76,7 +76,7 @@ test("tools: each level's gain grows (about x1.6), doubles at every tenth level,
 });
 
 test("a level pays back slower than the one before, but a tenth level pays back faster (and ten levels slower)", () => {
-  for (const t of petOf("cat").tools) {
+  for (const t of petOf("cat").tools.slice(0, 2)) {
     const payback = (l: number) => t.cost(l) / (t.value(l + 1) - t.value(l));
     for (let l = 3; l < 60; l++) {
       if (l % 10 === 9) expect(payback(l), `level ${l + 1}`).toBeLessThan(payback(l - 1) / 2);
@@ -87,7 +87,7 @@ test("a level pays back slower than the one before, but a tenth level pays back 
 });
 
 test("two hours of greedy play stay finite and fit on screen", () => {
-  // every second: a second's coins and ten taps, then buy the cheapest tool while there are coins for it
+  // every second: a second's coins and ten taps, then buy the cheapest tool while there's enough
   for (const id of ["cat", "mochi"] as const) {
     let s = freshSlot(id);
     for (let sec = 0; sec < 2 * 3600; sec++) {
@@ -95,16 +95,21 @@ test("two hours of greedy play stay finite and fit on screen", () => {
       s = { ...s, coins: s.coins + gain };
       for (let buys = 0; buys < 50; buys++) {
         const tools = petOf(id).tools;
-        const i = tools[0].cost(s.tools[0]) <= tools[1].cost(s.tools[1]) ? 0 : 1;
+        let i = 0;
+        for (const j of [1, 2]) if (tools[j].cost(s.tools[j]) < tools[i].cost(s.tools[i])) i = j;
         const cost = tools[i].cost(s.tools[i]);
         if (s.coins < cost) break;
-        s = { ...s, coins: s.coins - cost, tools: i === 0 ? [s.tools[0] + 1, s.tools[1]] : [s.tools[0], s.tools[1] + 1] };
+        const next = [...s.tools] as [number, number, number];
+        next[i] += 1;
+        s = { ...s, coins: s.coins - cost, tools: next };
       }
     }
     expect(Number.isFinite(s.coins)).toBe(true);
-    expect(perSecond(s)).toBeLessThan(1e12);
+    expect(paysPerSecond(s)).toBe(10);
+    expect(perSecond(s)).toBeLessThan(1e14);
     expect(perSecond(s), "the tenth levels make it grow").toBeGreaterThan(1e9);
     expect(fmt(s.coins).length).toBeLessThanOrEqual(6);
+    expect(fmt(s.coins, 4).length).toBeLessThanOrEqual(6);
     expect(fmtRate(perSecond(s)).length).toBeLessThanOrEqual(6);
   }
 });
@@ -112,8 +117,24 @@ test("two hours of greedy play stay finite and fit on screen", () => {
 test("tool costs and names", () => {
   const t = petOf("cat").tools;
   expect([t[0].cost(0), t[0].cost(1), t[1].cost(0), t[1].cost(1)]).toEqual([40, 80, 20, 40]);
-  expect(t.map((x) => [x.kind, x.name])).toEqual([["sec", "tool.cat.sec"], ["tap", "tool.cat.tap"]]);
+  expect(t.map((x) => [x.kind, x.name])).toEqual([["sec", "tool.cat.sec"], ["tap", "tool.cat.tap"], ["speed", "tool.cat.speed"]]);
   expect(petOf("mochi").tools[1].name).toBe("tool.mochi.tap");
+});
+
+test("the coins on the HUD in four figures, so a payout shows on a big pile", () => {
+  expect(fmt(1_374_000_000_000, 4)).toBe("1.374T");
+  expect(fmt(245_319_000_000, 4)).toBe("245.3B");
+  expect(fmt(12_345.6, 4)).toBe("12.34K");
+  expect(fmt(123_456, 4)).toBe("123.4K");
+  expect(fmt(1200, 4)).toBe("1.2K");
+  expect(fmt(999.9, 4)).toBe("999");
+  expect(fmt(999_912_345_678_901, 4)).toBe("999.9T");
+  // a coin short of the next unit is still under it: never shown as more than it is
+  expect(fmt(999_999_999_999_999, 4)).toBe("999.9T");
+  expect(fmt(999_999_999_999_999)).toBe("999T");
+  expect(fmt(999_999)).toBe("999K");
+  expect(fmt(1e15)).toBe("1Q");
+  expect(fmt(15_757_600_000_000_000, 4)).toBe("15.75Q");
 });
 
 test("numbers on screen: K, M, B from a thousand up, three figures, never rounded up", () => {
@@ -133,6 +154,28 @@ test("numbers on screen: K, M, B from a thousand up, three figures, never rounde
   expect(fmt(45_600_000)).toBe("45.6M");
   expect(fmt(1_234_567_890)).toBe("1.23B");
   expect(fmt(4_560_000_000_000)).toBe("4.56T");
+  expect(fmt(15_757_600_000_000_000)).toBe("15.7Q");
   expect(fmtRate(1597)).toBe("1.59K");
   expect(fmtRate(2584 * 1.5)).toBe("3.87K");
+});
+
+test("the speed tool: one more payout of the second's coins each level, up to ten a second", () => {
+  for (const p of PETS) {
+    const speed = petOf(p.id).tools[2];
+    expect(speed.kind).toBe("speed");
+    expect(speed.name).toBe(`tool.${p.id}.speed`);
+    expect([0, 1, 2, 8, 9, 12].map(speed.value)).toEqual([1, 2, 3, 9, 10, 10]);
+    expect([0, 1, 2, 3].map(speed.cost)).toEqual([10_000, 100_000, 1_000_000, 10_000_000]);
+    // the last one, x9 to x10, a trillion
+    expect(speed.cost(8)).toBe(1e12);
+    expect(speed.cost(9)).toBe(Infinity);
+  }
+});
+
+test("coins a second: a payout's coins times the payouts a second", () => {
+  const s = { ...freshSlot("mungge"), tools: [2, 0, 3] as [number, number, number] };
+  expect(perPayout(s)).toBe(5);
+  expect(paysPerSecond(s)).toBe(4);
+  expect(perSecond(s)).toBe(20);
+  expect(paysPerSecond(freshSlot("cat"))).toBe(1);
 });

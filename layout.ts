@@ -34,7 +34,7 @@ export const ASK_HOME = box(480, 330, 260, 92);
 export const ASK_STAY = box(780, 330, 340, 92);
 const PANEL_TOP = 134;
 export const panelBox = (panel: "shop" | "closet"): Box =>
-  box(1030, PANEL_TOP, 542, panel === "shop" ? 24 + 2 * 90 - 6 : 24 + (ITEMS.length + 1) * 90 - 6);
+  box(1030, PANEL_TOP, 542, panel === "shop" ? 24 + 3 * 90 - 6 : 24 + (ITEMS.length + 1) * 90 - 6);
 export const rowBox = (i: number): Box => box(1042, PANEL_TOP + 12 + i * 90, 518, 84);
 export const BUY_BAR = rowBox(ITEMS.length);
 

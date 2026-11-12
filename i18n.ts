@@ -23,6 +23,12 @@ export const STR = {
   "tool.mungge.tap": s("몽글 박치기", "FLUFF BONK"),
   "tool.mochi.sec": s("보물", "TREASURE"),
   "tool.mochi.tap": s("날갯짓", "WING FLAP"),
+  // the third tool: the second's coins, more times a second
+  "tool.cat.speed": s("방울", "BELL"),
+  "tool.upa.speed": s("물레방아", "WATER WHEEL"),
+  "tool.mungge.speed": s("바람개비", "PINWHEEL"),
+  "tool.mochi.speed": s("여의주", "DRAGON PEARL"),
+  max: s("최대", "MAX"),
   // the closet's items, and where each goes
   "item.ribbon": s("리본", "RIBBON"),
   "item.cap": s("야구모자", "CAP"),

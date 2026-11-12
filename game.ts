@@ -6,11 +6,11 @@
 import type { FrameInput, Playtest } from "raea";
 import { ITEMS, itemOf } from "./items";
 import {
-  ASK_HOME, ASK_STAY, BUY_BAR, CLOSET_BTN, CONTINUE_BTN, DEL_CANCEL, DEL_OK, DEL_PANEL, GEAR_HOME, GEAR_PLAY, LANG_EN, LANG_KO, LANG_ROW, NEW_BTN,
+  ASK_HOME, ASK_STAY, BUY_BAR, CLOSET_BTN, GROUND, CONTINUE_BTN, DEL_CANCEL, DEL_OK, DEL_PANEL, GEAR_HOME, GEAR_PLAY, LANG_EN, LANG_KO, LANG_ROW, NEW_BTN,
   PET_BOX, PET_BUY, PET_CARDS, PET_CENTER, PETS_BTN, PETS_PANEL, SAVE_BTN, SET_PANEL, SET_ROW, SHOP_BTN, SLOT_CARDS, SLOT_DELETE,
   SLOTS_PANEL, SOUND_ROW, WALK, inside, panelBox, petBoxAt, rowBox, toField, type Box,
 } from "./layout";
-import { hash, perSecond, perTap, petOf, PETS } from "./pets";
+import { hash, paysPerSecond, perPayout, perSecond, perTap, petOf, PETS } from "./pets";
 import { readAll } from "./save";
 import {
   DEFAULT_SETTINGS, FRESH_ACCOUNT, PET_IDS, SUN_FRAMES, freshSlot,
@@ -18,7 +18,7 @@ import {
 } from "./state";
 
 // ---- the state ----
-export interface Pop { x: number; y: number; n: number; t: number; idle: boolean; big?: boolean }
+export interface Pop { x: number; y: number; n: number; t: number; idle: boolean; big?: boolean; quick?: boolean }
 export interface Chip { x: number; y: number; vx: number; vy: number; t: number }
 /** the home screen: its two buttons ("main"), the slots opened to continue or to start new, the PETS panel, picking a
  *  new slot's pet, and asking before a slot is deleted or started over */
@@ -104,11 +104,11 @@ export const shownWear = (g: Game): Wear => {
 };
 export const pickedItem = (g: Game) => (g.pick ? itemOf(g.pick) ?? null : null);
 /** at most this many numbers float up and coins fly out at once: tapping as fast as a hand goes made dozens, each
- *  drawn every frame (the oldest go first; every tap still pays) */
-export const MAX_POPS = 8, MAX_CHIPS = 12;
+ *  drawn every frame (the oldest go first; every tap still pays). Ten payouts a second, quick, keep five up */
+export const MAX_POPS = 12, MAX_CHIPS = 12;
 const newest = <T,>(xs: T[], n: number): T[] => (xs.length > n ? xs.slice(-n) : xs);
 /** a tool can be bought, or a closet item, right now */
-export const canUpgrade = (p: SlotData) => petOf(p.pet).tools.some((t, i) => p.coins >= t.cost(p.tools[i]));
+export const canUpgrade = (p: SlotData) => petOf(p.pet).tools.some((t, i) => p.coins >= t.cost(p.tools[i] ?? 0));
 export const canDress = (p: SlotData) => ITEMS.some((it) => !p.owned.includes(it.id) && p.coins >= it.price);
 
 // ---- the demo a render plays when nobody is at the controls ----
@@ -198,7 +198,7 @@ function hit(s: Game, x: number, y: number): Action | null {
   if (inside(SHOP_BTN, x, y)) return { kind: "panel", panel: "shop" };
   if (inside(CLOSET_BTN, x, y)) return { kind: "panel", panel: "closet" };
   if (s.panel) {
-    const rows = s.panel === "shop" ? 2 : ITEMS.length;
+    const rows = s.panel === "shop" ? petOf(s.p.pet).tools.length : ITEMS.length;
     for (let i = 0; i < rows; i++) if (inside(rowBox(i), x, y)) return { kind: "row", row: i };
     if (s.panel === "closet" && inside(BUY_BAR, x, y)) return { kind: "buy" };
     if (inside(panelBox(s.panel), x, y)) return null;
@@ -348,12 +348,28 @@ function playStep(g: Game, action: Action | null, busy: boolean, { now, pressed,
     Object.assign(g, { sunT: now, suns: g.suns + 1, accN: g.accN + 1 });
   }
   g.acc = acc;
-  // a second's coins; every ten seconds the slot saves (if auto save is on) and the day's time always does
-  if (now % 60 === 0) {
-    const r = perSecond(p);
-    p.coins += r; p.earned += r; g.payouts += 1;
-    g.pops = newest([...g.pops, { x: g.petX - 250, y: PET_BOX.y + 10, n: r, t: now, idle: true }], MAX_POPS);
+  // the second's coins, paid as many times a second as the speed tool says (evenly over the second), each with its
+  // own +N: once a second it rises where it always has; faster, they're scattered and quick so they don't pile up.
+  // One coin sound a second, on the second. Every ten seconds the slot saves (if auto save is on) and the day's time
+  // always does
+  const pays = paysPerSecond(p);
+  if (Math.floor((now * pays) / 60) > Math.floor(((now - 1) * pays) / 60)) {
+    const r = perPayout(p);
+    p.coins += r; p.earned += r;
+    const quick = pays > 1;
+    let x = g.petX - 250, y = PET_BOX.y + 10;
+    if (quick) {
+      // round the pet: each payout a golden step (0.618 of the arc) on from the last, along an oval over it and to its
+      // sides (a little below level, never into the ground), nearer or farther by turns; kept on the field
+      const k = Math.floor((now * pays) / 60);
+      const u = (k * 0.618034) % 1, w = (k * 0.381966) % 1;
+      const ang = -Math.PI * (1.2 * u - 0.1), rad = 210 + 70 * w;
+      x = Math.round(Math.min(1440, Math.max(70, g.petX + Math.cos(ang) * rad * 1.3 - 30)));
+      y = Math.round(Math.min(GROUND - 60, Math.max(100, PET_CENTER.y - 40 + Math.sin(ang) * rad)));
+    }
+    g.pops = newest([...g.pops, { x, y, n: r, t: now, idle: true, quick }], MAX_POPS);
   }
+  if (now % 60 === 0) g.payouts += 1;
   if (now % 600 === 0) { auto(); g.accN += 1; }
 
   // left and right (arrows or A and D) walk the pet, unless a box is asking something
@@ -409,12 +425,14 @@ function playStep(g: Game, action: Action | null, busy: boolean, { now, pressed,
       break;
     }
     case "row":
-      if (g.panel === "shop" && action.row < 2) {
+      if (g.panel === "shop" && action.row < def.tools.length) {
         const tool = def.tools[action.row];
-        const cost = tool.cost(p.tools[action.row]);
+        const cost = tool.cost(p.tools[action.row] ?? 0);
         if (p.coins >= cost) {
           p.coins -= cost;
-          p.tools = action.row === 0 ? [p.tools[0] + 1, p.tools[1]] : [p.tools[0], p.tools[1] + 1];
+          const tools = [...p.tools] as SlotData["tools"];
+          tools[action.row] = (tools[action.row] ?? 0) + 1;
+          p.tools = tools;
           g.ups += 1; g.note = { panel: "shop", row: action.row, ok: true, t: now }; auto();
         } else {
           g.fails += 1; g.note = { panel: "shop", row: action.row, ok: false, t: now };

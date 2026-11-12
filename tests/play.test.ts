@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { makeInitial, type Game } from "../game";
-import { ASK_HOME, CONTINUE_BTN, GEAR_PLAY, PET_CENTER, PETS_BTN, SAVE_BTN, SLOT_CARDS, rowBox } from "../layout";
+import { MAX_POPS, makeInitial, type Game } from "../game";
+import { ASK_HOME, CONTINUE_BTN, GEAR_PLAY, GROUND, PET_CENTER, PETS_BTN, SAVE_BTN, SLOT_CARDS, rowBox } from "../layout";
 import { hash } from "../pets";
 import { DEFAULT_SETTINGS, FRESH_ACCOUNT, SUN_FRAMES, freshSlot, type Loaded, type SlotData } from "../state";
 import { drive } from "./drive";
@@ -73,7 +73,7 @@ test("shop rows are the pet's tools", () => {
   const mungge: SlotData = { ...freshSlot("mungge"), coins: 40 };
   let g = playing({ slots: [mungge, null, null], account: { ...FRESH_ACCOUNT, pets: ["cat", "mungge"] } });
   g = drive(g, { 21: { keys: ["s"] }, 30: { click: rowBox(0) } }, 20, 20);
-  expect(g.p.tools).toEqual([1, 0]);
+  expect(g.p.tools).toEqual([1, 0, 0]);
   expect(g.p.coins).toBe(0);
 });
 
@@ -113,6 +113,65 @@ test("tapping as fast as keys go: every tap pays, the effects on screen stay a h
     most = { pops: Math.max(most.pops, g.pops.length), chips: Math.max(most.chips, g.chips.length) };
   }
   expect(g.taps - taps0).toBe(60);
-  expect(most.pops).toBeLessThanOrEqual(8);
+  expect(most.pops).toBeLessThanOrEqual(MAX_POPS);
   expect(most.chips).toBeLessThanOrEqual(12);
+});
+
+test("the speed tool: coins come in several times a second, each with its own +N; one coin sound a second", () => {
+  const cat: SlotData = { ...freshSlot("cat"), tools: [0, 0, 2] };
+  let g = playing({ slots: [cat, null, null] });
+  const c0 = g.p.coins, pay0 = g.payouts, before = new Set(g.pops);
+  let moves = 0;
+  for (let f = 20; f < 80; f++) {
+    const before = g.p.coins;
+    g = drive(g, {}, 1, f);
+    if (g.p.coins !== before) moves++;
+  }
+  expect(moves).toBe(3);
+  expect(g.p.coins - c0).toBe(3);
+  expect(g.payouts - pay0).toBe(1);
+  const idle = g.pops.filter((p) => p.idle && !before.has(p));
+  expect(idle.map((p) => p.n)).toEqual([1, 1, 1]);
+  expect(idle.every((p) => p.quick)).toBe(true);
+  expect(new Set(idle.map((p) => p.x)).size).toBeGreaterThan(1);
+});
+
+test("one payout a second: its +N as before, where it always was", () => {
+  let g = playing({});
+  g = drive(g, {}, 70, 20);
+  const idle = g.pops.filter((p) => p.idle);
+  expect(idle.length).toBeGreaterThan(0);
+  expect(idle.every((p) => !p.quick && p.x === idle[0].x)).toBe(true);
+});
+
+test("the shop's third row buys the speed tool, and a full one can't be bought", () => {
+  let g = playing({ slots: [{ ...freshSlot("cat"), coins: 10_000 }, null, null] });
+  g = drive(g, { 21: { keys: ["s"] }, 30: { click: rowBox(2) } }, 20, 20);
+  expect(g.p.tools).toEqual([0, 0, 1]);
+  expect(g.p.coins).toBe(0);
+  let h = playing({ slots: [{ ...freshSlot("cat"), coins: 1e15, tools: [0, 0, 9] }, null, null] });
+  const fails = h.fails;
+  h = drive(h, { 21: { keys: ["s"] }, 30: { click: rowBox(2) } }, 20, 20);
+  expect(h.p.tools).toEqual([0, 0, 9]);
+  expect(h.fails).toBe(fails + 1);
+});
+
+test("ten payouts a second: their +N spread all round the pet, on the field", () => {
+  const cat: SlotData = { ...freshSlot("cat"), tools: [0, 0, 9] };
+  let g = playing({ slots: [cat, null, null] });
+  const before = new Set(g.pops);
+  g = drive(g, {}, 60, 20);
+  const quick = g.pops.filter((p) => p.idle && !before.has(p));
+  expect(quick.length).toBeGreaterThanOrEqual(8);
+  // the label sits right of its x (coin at x - 70): its middle is about x + 30
+  const mid = (p: { x: number }) => p.x + 30;
+  expect(quick.some((p) => mid(p) < g.petX - 120)).toBe(true);
+  expect(quick.some((p) => mid(p) > g.petX + 120)).toBe(true);
+  expect(Math.max(...quick.map((p) => p.y)) - Math.min(...quick.map((p) => p.y))).toBeGreaterThan(150);
+  for (const p of quick) {
+    expect(p.x - 70).toBeGreaterThanOrEqual(0);
+    expect(p.x + 160).toBeLessThanOrEqual(1600);
+    expect(p.y).toBeGreaterThanOrEqual(100);
+    expect(p.y).toBeLessThanOrEqual(GROUND - 60);
+  }
 });

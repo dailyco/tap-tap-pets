@@ -14,7 +14,7 @@ import { GearButton } from "./settings";
 export function Hud({ g, frame }: { g: Game; frame: number }) {
   const def = petOf(g.p.pet);
   return (
-    <HudView lang={g.set.lang} coins={fmt(g.p.coins)} perSec={`+${fmtRate(perSecond(g.p))}`} perTap={`+${fmtRate(tapBase(g.p))}`}
+    <HudView lang={g.set.lang} coins={fmt(g.p.coins, 4)} perSec={`+${fmtRate(perSecond(g.p))}`} perTap={`+${fmtRate(tapBase(g.p))}`}
       secIcon={def.tools[0].icon} tapIcon={def.tools[1].icon} sun={g.acc.sun} style={`${g.p.owned.length}/${ITEMS.length}`}
       day={Math.floor((g.acc.sunFrames / SUN_FRAMES) * DAY_W)} bump={onTwos(frame) - g.tapT >= 0 && onTwos(frame) - g.tapT < 6} />
   );
@@ -130,18 +130,30 @@ export function Shop({ g, frame }: { g: Game; frame: number }) {
     <>
       <Frame box={panelBox("shop")} />
       {def.tools.map((tool, i) => {
-        const lv = g.p.tools[i];
+        const lv = g.p.tools[i] ?? 0;
         const cost = tool.cost(lv);
-        const unit = t(L, tool.kind === "sec" ? "unit.sec" : "unit.tap");
-        const mult = tool.kind === "sec" ? def.mult.sec : def.mult.tap;
+        const full = !Number.isFinite(cost);
+        const priceW = full ? textW(t(L, "max"), 4) : textWidth(fmt(cost), 4) + 48;
         const r = RowGround({ g, frame, panel: "shop", i });
+        let gain: string;
+        if (tool.kind === "speed") {
+          // payouts a second, as a multiplier: x3 > x4 (the pixel font has no ×)
+          const x = L === "en" ? "X" : "×";
+          gain = `${t(L, "lv", { n: lv + 1 })}  ${x}${tool.value(lv)}${full ? "" : ` > ${x}${tool.value(lv + 1)}`}`;
+        } else {
+          const unit = t(L, tool.kind === "sec" ? "unit.sec" : "unit.tap");
+          const mult = tool.kind === "sec" ? def.mult.sec : def.mult.tap;
+          gain = gainLine(t(L, "lv", { n: lv + 1 }), fmtRate(tool.value(lv) * mult), fmtRate(tool.value(lv + 1) * mult), unit, r.w - 90 - 16);
+        }
         return (
           <span key={tool.icon}>
             {r.el}
             <FitIcon name={tool.icon} box={60} x={r.x + 12} y={r.y + 12} />
-            <Label s={t(L, tool.name)} px={textW(t(L, tool.name), 4) <= r.w - 16 - textWidth(fmt(cost), 4) - 48 - 90 ? 4 : 3} x={r.x + 90} y={r.y + 14} />
-            <Label s={gainLine(t(L, "lv", { n: lv + 1 }), fmtRate(tool.value(lv) * mult), fmtRate(tool.value(lv + 1) * mult), unit, r.w - 90 - 16)} px={3} x={r.x + 90} y={r.y + 52} color={UI.dim} />
-            <Price n={cost} can={g.p.coins >= cost} right={r.x + r.w - 16} y={r.y + 16} />
+            <Label s={t(L, tool.name)} px={textW(t(L, tool.name), 4) <= r.w - 16 - priceW - 90 ? 4 : 3} x={r.x + 90} y={r.y + 14} />
+            <Label s={gain} px={3} x={r.x + 90} y={r.y + 52} color={UI.dim} />
+            {full
+              ? <Label s={t(L, "max")} px={4} x={r.x + r.w - 16} y={r.y + 16} color={C.gold} align="right" />
+              : <Price n={cost} can={g.p.coins >= cost} right={r.x + r.w - 16} y={r.y + 16} />}
           </span>
         );
       })}
@@ -241,10 +253,11 @@ export function Pops({ g, frame }: { g: Game; frame: number }) {
       })}
       {g.pops.map((p, i) => {
         if (p.idle) {
-          const a = onFours(frame) - p.t;
-          if (a < 0 || a > 60) return null;
-          const o = a < 40 ? 1 : 1 - (a - 40) / 20;
-          const y = Math.round(p.y - a * 0.9);
+          // a quick one (several payouts a second) rises twice as fast and is gone in half a second
+          const a = onFours(frame) - p.t, life = p.quick ? 32 : 60, fade = p.quick ? 20 : 40;
+          if (a < 0 || a > life) return null;
+          const o = a < fade ? 1 : 1 - (a - fade) / (life - fade);
+          const y = Math.round(p.y - a * (p.quick ? 1.8 : 0.9));
           return (
             <span key={"i" + p.t}>
               <Icon name="coin" px={3} x={p.x - 70} y={y - 4} opacity={o} />

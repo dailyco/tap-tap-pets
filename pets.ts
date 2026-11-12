@@ -1,16 +1,16 @@
-// The pets: what each costs in sunlight, what it's good at, and its own two tools (one for coins a second, one for
-// coins a tap). Every number here is from the design (docs/superpowers/specs/2026-11-11-pets-sunlight-slots-design.md).
+// The pets: what each costs in sunlight, what it's good at, and its own three tools (one for coins a second, one for
+// coins a tap, one for how many times a second the second's coins come). Every number here is from the design (docs/superpowers/specs/2026-11-11-pets-sunlight-slots-design.md).
 import type { Key } from "./i18n";
 import type { PetId, SlotData } from "./state";
 
-export interface ToolDef { kind: "sec" | "tap"; name: Key; icon: string; value(lv: number): number; cost(lv: number): number }
+export interface ToolDef { kind: "sec" | "tap" | "speed"; name: Key; icon: string; value(lv: number): number; cost(lv: number): number }
 export interface PetDef {
   id: PetId;
   name: Key;
   ability: Key;
   /** sunlight to bring it home; 0: it's there from the start */
   price: number;
-  tools: [ToolDef, ToolDef];
+  tools: [ToolDef, ToolDef, ToolDef];
   /** how much more it earns, a second and a tap */
   mult: { sec: number; tap: number };
   /** the chance a tap is a x5 jackpot */
@@ -39,8 +39,18 @@ const secTool = (pet: PetId): ToolDef => ({
 const tapTool = (pet: PetId): ToolDef => ({
   kind: "tap", name: `tool.${pet}.tap` as Key, icon: `tool-${pet}-tap`, value: (lv) => 2 * (fib(lv + 3) - 1) * boost(lv), cost: price(20),
 });
+/** the most times a second the second's coins come (every 6 frames) */
+export const SPEED_MAX = 10;
+/** payouts a second: 1, 2, 3 ... 10, one more each level, for 10K, 100K, 1M ... and the last (x9 to x10) 1T. Each is the second's
+ *  coins again (x2, then x1.5, x1.33 ...: dearer for less, so it tops out), and the coin count moves that many times a
+ *  second, so what comes in shows even on a pile of trillions */
+const speedTool = (pet: PetId): ToolDef => ({
+  kind: "speed", name: `tool.${pet}.speed` as Key, icon: `tool-${pet}-speed`,
+  value: (lv) => Math.min(lv, SPEED_MAX - 1) + 1,
+  cost: (lv) => (lv >= SPEED_MAX - 1 ? Infinity : 10_000 * Math.pow(10, lv)),
+});
 const pet = (id: PetId, price: number, mult: { sec: number; tap: number }, jackpot = 0): PetDef =>
-  ({ id, name: `pet.${id}` as Key, ability: `ability.${id}` as Key, price, tools: [secTool(id), tapTool(id)], mult, jackpot });
+  ({ id, name: `pet.${id}` as Key, ability: `ability.${id}` as Key, price, tools: [secTool(id), tapTool(id), speedTool(id)], mult, jackpot });
 
 export const PETS: PetDef[] = [
   pet("cat", 0, { sec: 1, tap: 1.5 }),
@@ -57,10 +67,17 @@ export const hash = (n: number) => {
   return (h >>> 0) / 4294967296;
 };
 
-export const perSecond = (s: SlotData) => {
+/** one payout of the second's coins */
+export const perPayout = (s: SlotData) => {
   const p = petOf(s.pet);
   return p.tools[0].value(s.tools[0]) * p.mult.sec;
 };
+
+/** how many times a second they come (a slot saved before the speed tool has it at its start) */
+export const paysPerSecond = (s: SlotData) => petOf(s.pet).tools[2].value(s.tools[2] ?? 0);
+
+/** coins a second, all the payouts together (what the HUD shows) */
+export const perSecond = (s: SlotData) => perPayout(s) * paysPerSecond(s);
 
 /** a tap's coins without a jackpot (what the HUD shows) */
 export const tapBase = (s: SlotData) => {

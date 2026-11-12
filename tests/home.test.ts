@@ -160,3 +160,4 @@ test("number keys pick or buy in the pets panels", () => {
   expect(g.acc.pets).toEqual(["cat", "mungge"]);
   expect(g.reveal?.pet).toBe("mungge");
 });
+
