@@ -1,0 +1,427 @@
+diff --git a/apps/game/src/player.rs b/apps/game/src/player.rs
+index bd859775..03b92f29 100644
+--- a/apps/game/src/player.rs
++++ b/apps/game/src/player.rs
+@@ -183,6 +183,8 @@ pub(crate) fn selftest(game: &Game, secs: f64, args: &[String]) -> R<String> {
+     let mut logged = serde_json::Map::new();
+     let (mut presented, mut stepped, mut keyed, mut pressed) = (0u64, 0u64, 0u64, 0u64);
+     let mut gaps: Vec<f64> = Vec::new();
++    // per gap: whether its frame came after its time (half a frame past the end of its slot)
++    let mut late: Vec<bool> = Vec::new();
+     let mut work: Vec<f64> = Vec::new();
+     let mut last: Option<Instant> = None;
+     let mut snapped = 0usize;
+@@ -234,6 +236,7 @@ pub(crate) fn selftest(game: &Game, secs: f64, args: &[String]) -> R<String> {
+         work.push((now - t0).as_secs_f64() * 1e3);
+         if let Some(l) = last {
+             gaps.push((now - l).as_secs_f64() * 1e3);
++            late.push(now > start + Duration::from_secs_f64((f as f64 + 1.5) / fps));
+         }
+         last = Some(now);
+         if let Some(at) = waiting.take() {
+@@ -255,7 +258,9 @@ pub(crate) fn selftest(game: &Game, secs: f64, args: &[String]) -> R<String> {
+     let levels = wav_levels(&tap);
+     let _ = std::fs::remove_file(&tap);
+     let budget = 1000.0 / fps.max(1.0);
+-    let missed = gaps.iter().filter(|g| **g > budget * 1.5).count();
++    // a frame missed: a long gap before it that left it late. A long gap after a frame that drew nothing (a still page
++    // isn't painted again, Live::draw) before one on time isn't one: the screen showed every frame when it was due
++    let missed = gaps.iter().zip(&late).filter(|(g, l)| **g > budget * 1.5 && **l).count();
+     let pct = |v: &[f64], p: f64| {
+         if v.is_empty() {
+             return 0.0;
+diff --git a/apps/game/src/window.rs b/apps/game/src/window.rs
+index 2151bf40..1c485e5a 100644
+--- a/apps/game/src/window.rs
++++ b/apps/game/src/window.rs
+@@ -21,6 +21,8 @@ pub(crate) struct Player {
+     pub(crate) error: Option<String>,
+     /// when the window was asked for, and when its first paint (the splash) went up (lightspeed F5)
+     pub(crate) launched: Instant,
++    /// a present owed with no new frame: the window was resized
++    pub(crate) owed: bool,
+ }
+ 
+ pub(crate) fn key_name(k: &Key) -> Option<String> {
+@@ -88,12 +90,31 @@ impl Player {
+         if self.frame < due {
+             self.frame = due;
+         }
+-        // presented every refresh (vsync paces the loop), a new frame or not
+-        let _ = n;
+-        live.present(stage, true)?;
++        // presented when a frame was stepped (or a resize owes one): the loop waits for the next frame's time
++        // (about_to_wait), so a 60 fps game draws 60 times a second whatever the display's rate or the window's state
++        if n > 0 || std::mem::take(&mut self.owed) {
++            live.present(stage, true)?;
++        }
+         Ok(())
+     }
+ 
++    /// The next redraw asked for when the next frame is due, or a wait until then: before the game opens, at once.
++    pub(crate) fn schedule(&self, el: &ActiveEventLoop) {
++        let Some(w) = self.window.as_ref() else { return };
++        let due = match (self.live.as_ref(), self.start) {
++            (Some(l), Some(s)) if !self.owed => raea_runtime_live::frame_due(s, self.frame, l.fps),
++            _ => {
++                w.request_redraw();
++                return;
++            }
++        };
++        if Instant::now() >= due {
++            w.request_redraw();
++        } else {
++            el.set_control_flow(ControlFlow::WaitUntil(due));
++        }
++    }
++
+     pub(crate) fn toggle_fullscreen(&self) {
+         if let Some(w) = &self.window {
+             w.set_fullscreen(if w.fullscreen().is_some() { None } else { Some(Fullscreen::Borderless(None)) });
+@@ -143,6 +164,11 @@ impl ApplicationHandler for Player {
+                 if let Some(l) = self.live.as_mut() {
+                     l.resize(px.width, px.height);
+                 }
++                // the new size drawn now, not at the next frame
++                self.owed = true;
++                if let Some(w) = self.window.as_ref() {
++                    w.request_redraw();
++                }
+             }
+             WindowEvent::ModifiersChanged(m) => self.mods = m.state(),
+             WindowEvent::Focused(false) => self.keys.clear(),
+@@ -202,13 +228,15 @@ impl ApplicationHandler for Player {
+                     self.error = Some(e);
+                     el.exit();
+                 }
+-                if let Some(w) = self.window.as_ref() {
+-                    w.request_redraw();
+-                }
+             }
+             _ => {}
+         }
+     }
++
++    /// Between events: the next redraw when the next frame is due (or a wait until then), never a redraw per loop
++    fn about_to_wait(&mut self, el: &ActiveEventLoop) {
++        self.schedule(el);
++    }
+ }
+ 
+ pub(crate) fn probing() -> bool {
+@@ -218,7 +246,7 @@ pub(crate) fn probing() -> bool {
+ pub(crate) fn windowed(game: Game) -> R<String> {
+     let el = EventLoop::new().map_err(|e| format!("event loop: {e}"))?;
+     el.set_control_flow(ControlFlow::Poll);
+-    let mut p = Player { game, window: None, stage: None, live: None, keys: Vec::new(), pointer: None, wheel: 0.0, mods: ModifiersState::empty(), start: None, frame: -1, error: None, launched: Instant::now() };
++    let mut p = Player { game, window: None, stage: None, live: None, keys: Vec::new(), pointer: None, wheel: 0.0, mods: ModifiersState::empty(), start: None, frame: -1, error: None, launched: Instant::now(), owed: false };
+     el.run_app(&mut p).map_err(|e| format!("event loop: {e}"))?;
+     if let Some(l) = p.live.as_mut() {
+         l.silence();
+diff --git a/apps/play/src/lib.rs b/apps/play/src/lib.rs
+index a3178bcd..3bc3d9a8 100644
+--- a/apps/play/src/lib.rs
++++ b/apps/play/src/lib.rs
+@@ -82,6 +82,8 @@ struct Run {
+     reusable: Vec<u64>,
+     last_rss: Option<Instant>,
+     error: Option<String>,
++    /// a present owed with no new frame: the window was resized
++    owed: bool,
+ }
+ 
+ fn rss_kb() -> u64 {
+@@ -169,6 +171,7 @@ pub fn play(args: &[String]) -> R<String> {
+         reusable: Vec::new(),
+         last_rss: None,
+         error: None,
++        owed: false,
+     };
+     if args.iter().any(|a| a == "--offscreen") {
+         // --snapshot S OUT.png (repeatable): the page read back at S seconds
+diff --git a/apps/play/src/offscreen.rs b/apps/play/src/offscreen.rs
+index f5062c93..f043c103 100644
+--- a/apps/play/src/offscreen.rs
++++ b/apps/play/src/offscreen.rs
+@@ -251,6 +251,8 @@ pub(crate) fn offscreen(mut run: Run, json: Option<String>, flat_out: bool, snap
+         let t1 = Instant::now();
+         if layer.is_some() && snaps.iter().any(|(at, _)| (*at * fps).round() as i64 == f) {
+             raea_gpu_device::present::read_next_present();
++            // the snapshot is this present's: painted, even on a still page
++            live.draw_next();
+         }
+         live.present(&mut stage, true)?;
+         let presented = if layer.is_some() { raea_gpu_device::present::take_present() } else { None };
+diff --git a/apps/play/src/run.rs b/apps/play/src/run.rs
+index 7d30f9d7..a8cde9a2 100644
+--- a/apps/play/src/run.rs
++++ b/apps/play/src/run.rs
+@@ -66,6 +66,11 @@ impl Run {
+         if self.frame < due {
+             self.frame = due;
+         }
++        // with vsync, presented when a frame was stepped (or a resize owes one): the loop waits for the next frame's
++        // time (about_to_wait). --no-vsync presents every loop, as fast as it goes (what a measure of its ceiling wants)
++        if self.vsync && n == 0 && !std::mem::take(&mut self.owed) {
++            return Ok(());
++        }
+         live.present(stage, true)?;
+         let now = Instant::now();
+         let work = (now - t0).as_secs_f64() * 1e3;
+@@ -196,6 +201,11 @@ impl ApplicationHandler for Run {
+                 if let Some(l) = self.live.as_mut() {
+                     l.resize(px.width, px.height);
+                 }
++                // the new size drawn now, not at the next frame
++                self.owed = true;
++                if let Some(w) = self.window.as_ref() {
++                    w.request_redraw();
++                }
+             }
+             WindowEvent::KeyboardInput { event, .. } => {
+                 if let Some(k) = key_name(&event.logical_key) {
+@@ -258,11 +268,33 @@ impl ApplicationHandler for Run {
+                     self.error = Some(e);
+                     el.exit();
+                 }
+-                if let Some(w) = self.window.as_ref() {
++                // --no-vsync: the next loop at once (its ceiling); with vsync, about_to_wait asks when it's due
++                if !self.vsync && let Some(w) = self.window.as_ref() {
+                     w.request_redraw();
+                 }
+             }
+             _ => {}
+         }
+     }
++
++    /// Between events, with vsync: the next redraw when the next frame is due, or a wait until then (before the
++    /// first frame, at once)
++    fn about_to_wait(&mut self, el: &ActiveEventLoop) {
++        if !self.vsync {
++            return;
++        }
++        let Some(w) = self.window.as_ref() else { return };
++        let due = match (self.live.as_ref(), self.start) {
++            (Some(l), Some(s)) if !self.owed => raea_runtime_live::frame_due(s, self.frame, l.fps),
++            _ => {
++                w.request_redraw();
++                return;
++            }
++        };
++        if Instant::now() >= due {
++            w.request_redraw();
++        } else {
++            el.set_control_flow(ControlFlow::WaitUntil(due));
++        }
++    }
+ }
+diff --git a/engine/page/src/motion.rs b/engine/page/src/motion.rs
+index 6b55d939..94c393e2 100644
+--- a/engine/page/src/motion.rs
++++ b/engine/page/src/motion.rs
+@@ -46,6 +46,8 @@ pub struct BlitzPage {
+     clock: Option<(f64, f64, f64)>,
+     /// RAEA_PAGE_DUMP writes this page (`dump`); off for a page beside the composition's (raea-render's image rows)
+     dumps: bool,
++    /// a sync changed the page since `take_changed` last asked
++    changed: bool,
+ }
+ 
+ /// The label of a render's frame copy, the one copy to the CPU a render makes (its encoder's: B1d, tools/readbacks.sh)
+@@ -204,7 +206,18 @@ impl BlitzPage {
+         let (page, nodes) = raea_sys_page::open_doc(app.world_mut(), w, h, config_fonts.clone());
+         // the image is made by the first update
+         app.update();
+-        Ok(BlitzPage { app, page, w, h, tree: Tree::default(), nodes, fonts: config_fonts, videos: Videos::default(), views: HashMap::new(), frames: HashMap::new(), subs: HashMap::new(), clock: None, dumps: true })
++        Ok(BlitzPage { app, page, w, h, tree: Tree::default(), nodes, fonts: config_fonts, videos: Videos::default(), views: HashMap::new(), frames: HashMap::new(), subs: HashMap::new(), clock: None, dumps: true, changed: true })
++    }
++
++    /// Whether a sync changed the page since this was last asked (elements made, moved, restyled or gone); a new page
++    /// has changed. Live play draws a frame whose page didn't change from the picture it has (Live::draw).
++    pub fn take_changed(&mut self) -> bool {
++        std::mem::take(&mut self.changed)
++    }
++
++    /// Whether the page moves by itself, with no sync: a CSS animation or transition running, a canvas, a scroll easing.
++    pub fn is_animating(&mut self) -> bool {
++        self.app.world_mut().non_send_mut::<Docs>().0.get(&self.page).is_some_and(|d| d.is_animating())
+     }
+ 
+     /// The page's document replaced by an HTML file, parsed by Blitz (an HTML page, a WPT test); its URLs resolve
+@@ -239,6 +252,12 @@ impl BlitzPage {
+         if ops.is_empty() {
+             return;
+         }
++        self.changed = true;
++        // RAEA_PAGE_OPS=1: what changed the page each sync, on stderr (what keeps a still-looking page painting)
++        if std::env::var_os("RAEA_PAGE_OPS").is_some() {
++            let s = format!("{ops:?}");
++            eprintln!("raea page ops: {} {}", ops.len(), s.chars().take(400).collect::<String>());
++        }
+         // an element gone or made again has no picture: its video's frame and its placeholder are placed again
+         for id in gone.iter().copied().chain(ops.iter().filter_map(|o| match o {
+             raea_core_wire::Op::Create { id, .. } => Some(*id),
+diff --git a/runtime/live/src/draw.rs b/runtime/live/src/draw.rs
+index 8cd1616e..44c3768a 100644
+--- a/runtime/live/src/draw.rs
++++ b/runtime/live/src/draw.rs
+@@ -2,10 +2,20 @@
+ 
+ use super::*;
+ 
++/// Frames in a row a still page goes unpainted (Live::draw): what changes with no sync is drawn at least every
++/// STILL_MAX + 1 frames (15 times a second at 60 fps)
++pub(crate) const STILL_MAX: u32 = 3;
++
+ impl Live {
++    /// The next draw paints the page even when it stayed still: a snapshot taken from the next present reads that one.
++    pub fn draw_next(&mut self) {
++        self.still = STILL_MAX;
++    }
++
+     /// The page as it stands, drawn and read back as premultiplied RGBA (the playtest's --snapshot): what the stage
+     /// shows, its 3D under it.
+     pub fn snapshot(&mut self) -> R<(u32, u32, Vec<u8>)> {
++        self.draw_next();
+         self.draw()?;
+         Ok((self.w, self.h, self.page.frame()?))
+     }
+@@ -193,6 +203,18 @@ impl Live {
+         }
+         self.page.has_under(target.is_some() && slot.is_none());
+         self.page.sync(self.app.world_mut(), &holders, self.brand.as_deref())?;
++        // a 2D page that stayed as drawn: the picture it has stands (live play painted every frame, a still one too).
++        // At most STILL_MAX frames in a row, so what changes with no sync (a picture that finished loading, a hover)
++        // is drawn within them
++        // (a game's live 3D with no scene yet draws nothing: the page alone counts; once it has one, it's drawn)
++        if self.scene.is_none() && self.baked.is_none() && self.page.still && self.still < STILL_MAX {
++            self.still += 1;
++            self.fresh = false;
++            self.dirty = false;
++            return Ok(());
++        }
++        self.still = 0;
++        self.fresh = true;
+         if let Some((t, (tw, th))) = &target {
+             match slot {
+                 Some(_) => self.page.set_scene_texture(t, *tw, *th),
+@@ -220,6 +242,10 @@ impl Live {
+             return Ok(false);
+         }
+         self.draw()?;
++        // a still page: the window keeps the picture it shows
++        if !self.fresh {
++            return Ok(false);
++        }
+         let Some(t) = self.texture() else { return Ok(false) };
+         if !stage.has_surface() {
+             if let Ok((_, _, device, _)) = raea_gpu_device::device() {
+diff --git a/runtime/live/src/lib.rs b/runtime/live/src/lib.rs
+index fec648db..f35182fe 100644
+--- a/runtime/live/src/lib.rs
++++ b/runtime/live/src/lib.rs
+@@ -30,6 +30,10 @@ pub struct Live {
+     brand: Option<String>,
+     /// a frame was stepped (or the page made again) since the page was last drawn
+     dirty: bool,
++    /// frames in a row whose page stayed as drawn, so weren't painted again (draw: at most STILL_MAX)
++    still: u32,
++    /// the last draw painted a new picture (false: the page was still and the picture it has stands)
++    fresh: bool,
+     /// the sound, opened at the first frame that has any (None: no device, or nothing heard yet)
+     mixer: Option<raea_runtime_sound::Mixer>,
+     mixer_failed: bool,
+@@ -377,6 +381,13 @@ pub fn wheel_key(dy: f64) -> String {
+     format!("Wheel:Y {dy}")
+ }
+ 
++/// When a window owes its next frame: frame `frame + 1` of a clock that started at `start` running at `fps`. A window
++/// waits for it instead of presenting every display refresh: a 60 fps game on a 120 Hz display drew each frame twice,
++/// and where vsync didn't hold the loop (a window behind others) it drew some 1,700 times a second, a core's worth.
++pub fn frame_due(start: std::time::Instant, frame: i64, fps: f64) -> std::time::Instant {
++    start + std::time::Duration::from_secs_f64((frame + 1).max(0) as f64 / fps.max(1.0))
++}
++
+ /// A wheel event's turn in CSS px, down positive (the DOM's deltaY): lines at 40 px each, pixels as they come.
+ pub fn wheel_px(d: &winit::event::MouseScrollDelta, scale: f64) -> f64 {
+     match d {
+@@ -426,6 +437,24 @@ fn frame_event(f: i64, keys: &[String], pointer: Option<(f64, f64, bool)>, sessi
+     m
+ }
+ 
++#[cfg(test)]
++mod frame_due_tests {
++    use super::*;
++    use std::time::{Duration, Instant};
++
++    #[test]
++    fn the_next_frame_is_due_on_the_compositions_clock() {
++        let t = Instant::now();
++        // nothing stepped yet: frame 0, at once
++        assert_eq!(frame_due(t, -1, 60.0), t);
++        // frame 59 stepped at 60 fps: frame 60, a second in
++        assert_eq!(frame_due(t, 59, 60.0), t + Duration::from_secs(1));
++        assert_eq!(frame_due(t, 0, 30.0), t + Duration::from_secs_f64(1.0 / 30.0));
++        // a rate of nothing is read as 1 fps, never a division by zero
++        assert_eq!(frame_due(t, 0, 0.0), t + Duration::from_secs(1));
++    }
++}
++
+ #[cfg(test)]
+ mod frame_event_tests {
+     use super::*;
+diff --git a/runtime/live/src/open.rs b/runtime/live/src/open.rs
+index 9243636a..404d8f9a 100644
+--- a/runtime/live/src/open.rs
++++ b/runtime/live/src/open.rs
+@@ -65,7 +65,7 @@ impl Live {
+         let (w, h) = if responsive { (stage.0.max(1), stage.1.max(1)) } else { (cw, ch) };
+         let page = raea_runtime_page::BevyPage::new(w, h, &dir)?;
+         let brand = raea_runtime_react::scene::page_css(&dir, w, &js);
+-        let mut live = Live { app, dir: dir.clone(), page, brand, dirty: true, mixer: None, mixer_failed: false, lag: (0.0, std::time::Instant::now()), w, h, fps, frames, responsive, js, master: None, master_wav: None, game_master: None, game_gain: None, scene_rx: None, scene: None, live3d: None, frame: 0, pads: Vec::new(), pointer: Default::default(), made: Default::default(), sound_buf: Vec::new(), holders: Vec::new(), baked: None, applied: -1, session: new_session() };
++        let mut live = Live { app, dir: dir.clone(), page, brand, dirty: true, still: 0, fresh: true, mixer: None, mixer_failed: false, lag: (0.0, std::time::Instant::now()), w, h, fps, frames, responsive, js, master: None, master_wav: None, game_master: None, game_gain: None, scene_rx: None, scene: None, live3d: None, frame: 0, pads: Vec::new(), pointer: Default::default(), made: Default::default(), sound_buf: Vec::new(), holders: Vec::new(), baked: None, applied: -1, session: new_session() };
+         if responsive {
+             live.send("raea-size", json!({"w": w, "h": h}));
+         }
+@@ -117,7 +117,7 @@ impl Live {
+         raea_runtime_react::scene::one_thread(&mut app);
+         let page = raea_runtime_page::BevyPage::new(w, h, &dir)?;
+         let brand = raea_runtime_react::scene::page_css(&dir, w, &js);
+-        let mut live = Live { app, dir: dir.clone(), page, brand, dirty: true, mixer: None, mixer_failed: false, lag: (0.0, std::time::Instant::now()), w, h, fps, frames, responsive: false, js, master: None, master_wav: None, game_master: None, game_gain: None, scene_rx: None, scene: None, live3d: None, frame: 0, pads: Vec::new(), pointer: Default::default(), made: Default::default(), sound_buf: Vec::new(), holders: Vec::new(), baked: None, applied: -1, session: new_session() };
++        let mut live = Live { app, dir: dir.clone(), page, brand, dirty: true, still: 0, fresh: true, mixer: None, mixer_failed: false, lag: (0.0, std::time::Instant::now()), w, h, fps, frames, responsive: false, js, master: None, master_wav: None, game_master: None, game_gain: None, scene_rx: None, scene: None, live3d: None, frame: 0, pads: Vec::new(), pointer: Default::default(), made: Default::default(), sound_buf: Vec::new(), holders: Vec::new(), baked: None, applied: -1, session: new_session() };
+         for b in &baked.init {
+             live.app.world().resource::<raea_runtime_react::ReplayFeed>().feed(b.clone());
+         }
+diff --git a/runtime/page/src/bevy_page.rs b/runtime/page/src/bevy_page.rs
+index 147916df..d7df967a 100644
+--- a/runtime/page/src/bevy_page.rs
++++ b/runtime/page/src/bevy_page.rs
+@@ -25,6 +25,9 @@ pub struct BevyPage {
+     pub(crate) surf: Option<Entity>,
+     /// the UiMaterial elements the last sync met: page id and spec (JSON)
+     pub(crate) ui_mats: Vec<(u64, String)>,
++    /// the last sync left the page as it was drawn: no element changed, nothing moves by itself (an animation, a
++    /// canvas), and it holds no video, no <Screen>, no texture (each of which changes with no sync)
++    pub still: bool,
+ }
+ 
+ impl BevyPage {
+@@ -34,7 +37,7 @@ impl BevyPage {
+         // they draw as it is
+         let fonts = raea_io_home::home().join("core/fonts");
+         let page = raea_page::motion::BlitzPage::new_on(w, h, Some(&fonts), Some(raea_runtime_view::render_creation()))?;
+-        Ok(BevyPage { page, w, h, dir: dir.to_path_buf(), slot: None, view: None, in_box: false, under: false, app_screens: Vec::new(), apps: Default::default(), walk: Walk::default(), surf: None, ui_mats: Vec::new() })
++        Ok(BevyPage { page, w, h, dir: dir.to_path_buf(), slot: None, view: None, in_box: false, under: false, app_screens: Vec::new(), apps: Default::default(), walk: Walk::default(), surf: None, ui_mats: Vec::new(), still: false })
+     }
+ 
+     /// The page made to match the React tree in `react` (the composition's App's World). `holders`: the props elements
+@@ -69,6 +72,9 @@ impl BevyPage {
+             return Err(refused.join("; ").into());
+         }
+         self.page.sync(self.walk.wants(), &self.walk.order);
++        let changed = self.page.take_changed();
++        let moving = !videos.is_empty() || !screens.is_empty() || TEXTURE_SLOTS.with(|c| !c.borrow().is_empty()) || self.page.is_animating();
++        self.still = !changed && !moving;
+         // each <Screen>'s nested composition: a root of its own at the screen's size, drawn into its own picture
+         let mut keep = Vec::new();
+         for s in screens {
