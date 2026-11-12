@@ -66,7 +66,8 @@ function starRects(frame: number, n: number): Rect[] {
 
 export function Scene({ frame, sunFrames }: { frame: number; sunFrames: number }) {
   const sky = skyAt(sunFrames);
-  const stars = sky.stars ? starRects(frame, sky.stars) : [];
+  // twinkling on fours: the frames between are the same picture (see Pops)
+  const stars = sky.stars ? starRects(frame - (frame % 4), sky.stars) : [];
   const body = sky.sun ? { rects: SUN, ...sky.sun } : sky.moon ? { rects: MOON, ...sky.moon } : null;
   // the sky, then what's in it, then the land in front (the sun sets behind the hills)
   return (

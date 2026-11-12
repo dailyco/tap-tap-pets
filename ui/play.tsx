@@ -210,22 +210,27 @@ export function Ask({ g }: { g: Game }) {
   );
 }
 
+/** an age stepped down to every `n` frames: what floats moves on twos and fours, as pixel art does, so the frames
+ *  between leave the screen as it was and live play doesn't paint them again (raea's Live::draw) */
+const stepped = (a: number, n: number) => a - (a % n);
+
 /** what floats up: +N from a tap (big and gold for a jackpot), the second's coins, coin chips */
 export function Pops({ g, frame }: { g: Game; frame: number }) {
   const L = g.set.lang;
   return (
     <>
       {g.chips.map((c, i) => {
-        const a = frame - c.t;
+        const a = stepped(frame - c.t, 2);
         if (a < 0 || a > 40) return null;
         const y = c.y + c.vy * a + 0.45 * a * a;
         if (y > GROUND) return null;
         return <Icon key={"c" + c.t + i} name="coin" px={2} x={Math.round(c.x + c.vx * a - 10)} y={Math.round(y - 10)} />;
       })}
       {g.pops.map((p, i) => {
-        const a = frame - p.t;
-        if (a < 0) return null;
+        const age = frame - p.t;
+        if (age < 0) return null;
         if (p.idle) {
+          const a = stepped(age, 4);
           if (a > 60) return null;
           const o = a < 40 ? 1 : 1 - (a - 40) / 20;
           const y = Math.round(p.y - a * 0.9);
@@ -236,6 +241,7 @@ export function Pops({ g, frame }: { g: Game; frame: number }) {
             </span>
           );
         }
+        const a = stepped(age, 2);
         if (a > 45) return null;
         const o = a < 30 ? 1 : 1 - (a - 30) / 15;
         return (
