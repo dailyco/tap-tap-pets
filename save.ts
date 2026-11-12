@@ -16,9 +16,13 @@ function call(name: string, args: unknown): unknown {
   }
 }
 
-const home = call("host.env", { name: "HOME" });
-/** where the save lives; null where the host has no home folder (a sandbox) */
-export const SAVE_PATH = typeof home === "string" && home ? `${home}/Library/Application Support/pixel-pet-save.db` : null;
+/** where the save lives: the file TAP_TAP_PETS_SAVE names (a separate game, sh play.sh NAME), else beside the user's
+ *  other app data; null where the host has neither (a sandbox) */
+export function savePathFrom(custom: unknown, home: unknown): string | null {
+  if (typeof custom === "string" && custom) return custom;
+  return typeof home === "string" && home ? `${home}/Library/Application Support/pixel-pet-save.db` : null;
+}
+export const SAVE_PATH = savePathFrom(call("host.env", { name: "TAP_TAP_PETS_SAVE" }), call("host.env", { name: "HOME" }));
 
 interface Sql { sets?: { rows: unknown[][] }[]; error?: string | null }
 const sql = (q: string) => (SAVE_PATH ? (call("sqlite.exec", { path: SAVE_PATH, sql: q }) as Sql | null) : null);
