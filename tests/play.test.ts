@@ -102,3 +102,17 @@ test("autosave off: a sunlight still saves the account the moment it comes", () 
   expect(g.acc.sun).toBe(1);
   expect(g.accN).toBeGreaterThan(acc0);
 });
+
+test("tapping as fast as keys go: every tap pays, the effects on screen stay a handful", () => {
+  let g = playing({});
+  g = drive(g, {}, 20, 0);
+  const taps0 = g.taps;
+  let most = { pops: 0, chips: 0 };
+  for (let f = 20; f < 140; f++) {
+    g = drive(g, f % 2 === 0 ? { [f]: { keys: [" "] } } : {}, 1, f);
+    most = { pops: Math.max(most.pops, g.pops.length), chips: Math.max(most.chips, g.chips.length) };
+  }
+  expect(g.taps - taps0).toBe(60);
+  expect(most.pops).toBeLessThanOrEqual(8);
+  expect(most.chips).toBeLessThanOrEqual(12);
+});

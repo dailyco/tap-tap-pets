@@ -103,6 +103,10 @@ export const shownWear = (g: Game): Wear => {
   return it ? { ...g.p.wear, [it.slot]: it.id } : g.p.wear;
 };
 export const pickedItem = (g: Game) => (g.pick ? itemOf(g.pick) ?? null : null);
+/** at most this many numbers float up and coins fly out at once: tapping as fast as a hand goes made dozens, each
+ *  drawn every frame (the oldest go first; every tap still pays) */
+export const MAX_POPS = 8, MAX_CHIPS = 12;
+const newest = <T,>(xs: T[], n: number): T[] => (xs.length > n ? xs.slice(-n) : xs);
 /** a tool can be bought, or a closet item, right now */
 export const canUpgrade = (p: SlotData) => petOf(p.pet).tools.some((t, i) => p.coins >= t.cost(p.tools[i]));
 export const canDress = (p: SlotData) => ITEMS.some((it) => !p.owned.includes(it.id) && p.coins >= it.price);
@@ -348,7 +352,7 @@ function playStep(g: Game, action: Action | null, busy: boolean, { now, pressed,
   if (now % 60 === 0) {
     const r = perSecond(p);
     p.coins += r; p.earned += r; g.payouts += 1;
-    g.pops = [...g.pops, { x: g.petX - 250, y: PET_BOX.y + 10, n: r, t: now, idle: true }];
+    g.pops = newest([...g.pops, { x: g.petX - 250, y: PET_BOX.y + 10, n: r, t: now, idle: true }], MAX_POPS);
   }
   if (now % 600 === 0) { auto(); g.accN += 1; }
 
@@ -377,10 +381,10 @@ function playStep(g: Game, action: Action | null, busy: boolean, { now, pressed,
       const { coins, jackpot } = perTap(p, now);
       p.coins += coins; p.earned += coins; g.taps += 1; g.tapT = now;
       if (jackpot) g.jackpots += 1;
-      g.pops = [...g.pops, { x: g.petX + (hash(now * 3) - 0.5) * 220, y: PET_BOX.y - 40, n: coins, t: now, idle: false, big: jackpot }];
+      g.pops = newest([...g.pops, { x: g.petX + (hash(now * 3) - 0.5) * 220, y: PET_BOX.y - 40, n: coins, t: now, idle: false, big: jackpot }], MAX_POPS);
       const chips: Chip[] = [];
       for (let i = 0; i < 3; i++) chips.push({ x: action.x, y: action.y, vx: (hash(now * 7 + i) - 0.5) * 14, vy: -9 - hash(now * 13 + i) * 7, t: now });
-      g.chips = [...g.chips, ...chips];
+      g.chips = newest([...g.chips, ...chips], MAX_CHIPS);
       break;
     }
     case "panel":
