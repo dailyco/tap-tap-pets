@@ -1,0 +1,10 @@
+# renders, exported apps and zips, scratch saves
+out/
+*.app
+*.zip
+# raea's local record of renders and checks
+.raea/
+# separate games from play.sh NAME
+saves/
+.DS_Store
+node_modules/
