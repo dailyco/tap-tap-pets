@@ -393,35 +393,96 @@ index 9243636a..404d8f9a 100644
              live.app.world().resource::<raea_runtime_react::ReplayFeed>().feed(b.clone());
          }
 diff --git a/runtime/page/src/bevy_page.rs b/runtime/page/src/bevy_page.rs
-index 147916df..d7df967a 100644
+index 147916df..59711fde 100644
 --- a/runtime/page/src/bevy_page.rs
 +++ b/runtime/page/src/bevy_page.rs
-@@ -25,6 +25,9 @@ pub struct BevyPage {
+@@ -25,6 +25,12 @@ pub struct BevyPage {
      pub(crate) surf: Option<Entity>,
      /// the UiMaterial elements the last sync met: page id and spec (JSON)
      pub(crate) ui_mats: Vec<(u64, String)>,
 +    /// the last sync left the page as it was drawn: no element changed, nothing moves by itself (an animation, a
 +    /// canvas), and it holds no video, no <Screen>, no texture (each of which changes with no sync)
 +    pub still: bool,
++    /// the React ops count (ReactEntities::page_ops) and `under` at the last walk, when that walk met no video, no
++    /// <Screen>, no texture and no 3D holder: the same count again, the same page, and it isn't walked
++    walked: Option<(usize, bool)>,
  }
  
  impl BevyPage {
-@@ -34,7 +37,7 @@ impl BevyPage {
+@@ -34,13 +40,21 @@ impl BevyPage {
          // they draw as it is
          let fonts = raea_io_home::home().join("core/fonts");
          let page = raea_page::motion::BlitzPage::new_on(w, h, Some(&fonts), Some(raea_runtime_view::render_creation()))?;
 -        Ok(BevyPage { page, w, h, dir: dir.to_path_buf(), slot: None, view: None, in_box: false, under: false, app_screens: Vec::new(), apps: Default::default(), walk: Walk::default(), surf: None, ui_mats: Vec::new() })
-+        Ok(BevyPage { page, w, h, dir: dir.to_path_buf(), slot: None, view: None, in_box: false, under: false, app_screens: Vec::new(), apps: Default::default(), walk: Walk::default(), surf: None, ui_mats: Vec::new(), still: false })
++        Ok(BevyPage { page, w, h, dir: dir.to_path_buf(), slot: None, view: None, in_box: false, under: false, app_screens: Vec::new(), apps: Default::default(), walk: Walk::default(), surf: None, ui_mats: Vec::new(), still: false, walked: None })
      }
  
      /// The page made to match the React tree in `react` (the composition's App's World). `holders`: the props elements
-@@ -69,6 +72,9 @@ impl BevyPage {
+     /// holding 3D take instead of their own (see-through), by React node; `brand`: the space's brand kit. Errors when the
+     /// composition's surface isn't there or a video can't be decoded.
+     pub fn sync(&mut self, react: &mut World, holders: &HashMap<u64, Map<String, Value>>, brand: Option<&str>) -> R<()> {
++        // nothing React applied since the last walk changed the page (only the frame's marks), and that walk found
++        // nothing that changes with no op: the page is as it was. Walking every element to find so was most of a
++        // still frame's work in live play (~1 ms of a 60 fps game's 2.5)
++        let ops = react.get_resource::<raea_runtime_react::ReactEntities>().map(|e| e.page_ops);
++        if holders.is_empty() && ops.is_some_and(|n| self.walked == Some((n, self.under))) && !self.page.is_animating() {
++            self.still = true;
++            return Ok(());
++        }
+         let surf = match self.surf.filter(|e| react.get::<ReactKind>(*e).is_some_and(|k| k.0 == "surface")) {
+             Some(e) => e,
+             None => {
+@@ -69,6 +83,10 @@ impl BevyPage {
              return Err(refused.join("; ").into());
          }
          self.page.sync(self.walk.wants(), &self.walk.order);
 +        let changed = self.page.take_changed();
-+        let moving = !videos.is_empty() || !screens.is_empty() || TEXTURE_SLOTS.with(|c| !c.borrow().is_empty()) || self.page.is_animating();
-+        self.still = !changed && !moving;
++        let held = !videos.is_empty() || !screens.is_empty() || TEXTURE_SLOTS.with(|c| !c.borrow().is_empty());
++        self.still = !changed && !held && !self.page.is_animating();
++        self.walked = (!held && holders.is_empty()).then_some(ops).flatten().map(|n| (n, self.under));
          // each <Screen>'s nested composition: a root of its own at the screen's size, drawn into its own picture
          let mut keep = Vec::new();
          for s in screens {
+diff --git a/runtime/react/src/commits.rs b/runtime/react/src/commits.rs
+index 549b1934..ac7101b5 100644
+--- a/runtime/react/src/commits.rs
++++ b/runtime/react/src/commits.rs
+@@ -46,11 +46,16 @@ pub(crate) fn apply_commits(
+                 raea_core_wire::raw::Op::Full(v) => v,
+                 raea_core_wire::raw::Op::Update(u) => {
+                     let mut error = None;
++                    let mut marks_only = u.unset.is_none() && u.style_unset.is_none();
+                     raea_core_wire::raw::each_entry(u.props, |k, v| {
+                         if k == "data-raea-error" {
+                             error = serde_json::from_str::<String>(v.get()).ok();
+                         }
++                        marks_only &= k.starts_with("data-raea-");
+                     });
++                    if !marks_only {
++                        ents.page_ops += 1;
++                    }
+                     if let Some(e) = error {
+                         *COMPOSITION_ERROR.lock().unwrap() = Some(e);
+                     }
+@@ -64,6 +69,7 @@ pub(crate) fn apply_commits(
+                     continue;
+                 }
+             };
++            ents.page_ops += 1;
+             if let Some(e) = op["props"].get("data-raea-error").and_then(|v| v.as_str()) {
+                 *COMPOSITION_ERROR.lock().unwrap() = Some(e.to_string());
+             }
+diff --git a/runtime/react/src/lib.rs b/runtime/react/src/lib.rs
+index cc19ddac..6ba8e87a 100644
+--- a/runtime/react/src/lib.rs
++++ b/runtime/react/src/lib.rs
+@@ -68,6 +68,9 @@ pub struct ReactEntities {
+     /// how many commits and ops have been applied
+     pub commits: usize,
+     pub ops: usize,
++    /// of those ops, the ones that change what a page shows: all but an update of nothing but data-raea-* marks (the
++    /// frame marker's, every frame). The same count, the same page: live play skips walking it (BevyPage::sync)
++    pub page_ops: usize,
+ }
+ 
+ /// Runs a React bundle on its own JS thread and applies its commits to the World each frame.
