@@ -23,16 +23,19 @@ const fib = (n: number) => {
   for (let i = 0; i < n; i++) [a, b] = [b, a + b];
   return a;
 };
-/** a tool's price: x2 a level, faster than its gain (x1.618), so each level pays back a little slower than the last and
- *  coins never run away (two hours of greedy play: some 10M a second) */
+/** x2 at every tenth level (10, 20, 30 ...): the jump you can see coming in the shop */
+const boost = (lv: number) => Math.pow(2, Math.floor(lv / 10));
+/** a tool's price: x2 a level. The gain grows about x1.6 a level and doubles every ten, so a tenth level pays back fast,
+ *  but ten levels together cost about 4 times what they earn more than the ten before: coins never run away (two hours of
+ *  greedy play: some 50B a second) */
 const price = (first: number) => (lv: number) => Math.round(first * Math.pow(2, lv));
-/** coins a second: 1, 2, 4, 7, 12, 20, 33 ... (the gain +1, +2, +3, +5, +8 ...) for 20, 40, 80, 160 ... coins */
+/** coins a second: 1, 2, 4, 7, 12, 20, 33, 54, 88, 143, then 464 (x2) ... for 20, 40, 80, 160 ... coins */
 const secTool = (pet: PetId): ToolDef => ({
-  kind: "sec", name: `tool.${pet}.sec` as Key, icon: `tool-${pet}-sec`, value: (lv) => fib(lv + 3) - 1, cost: price(20),
+  kind: "sec", name: `tool.${pet}.sec` as Key, icon: `tool-${pet}-sec`, value: (lv) => (fib(lv + 3) - 1) * boost(lv), cost: price(20),
 });
-/** coins a tap: 1, 2, 3, 5, 8, 13 ... for 15, 30, 60, 120 ... coins */
+/** coins a tap: 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, then 288 (x2) ... for 15, 30, 60, 120 ... coins */
 const tapTool = (pet: PetId): ToolDef => ({
-  kind: "tap", name: `tool.${pet}.tap` as Key, icon: `tool-${pet}-tap`, value: (lv) => fib(lv + 2), cost: price(15),
+  kind: "tap", name: `tool.${pet}.tap` as Key, icon: `tool-${pet}-tap`, value: (lv) => fib(lv + 2) * boost(lv), cost: price(15),
 });
 const pet = (id: PetId, price: number, mult: { sec: number; tap: number }, jackpot = 0): PetDef =>
   ({ id, name: `pet.${id}` as Key, ability: `ability.${id}` as Key, price, tools: [secTool(id), tapTool(id)], mult, jackpot });

@@ -48,19 +48,24 @@ test("mochi: all coins +25% and a 5% x5 jackpot", () => {
   expect(PETS.map((p) => p.jackpot)).toEqual([0, 0.01, 0, 0.05]);
 });
 
-test("tools: each level's gain grows (about x1.6), and its price faster (x2)", () => {
+test("tools: each level's gain grows (about x1.6), doubles at every tenth level, and its price grows x2", () => {
   const [sec, tap] = petOf("cat").tools;
-  const lv = [0, 1, 2, 3, 4, 5, 6];
-  expect(lv.map(sec.value)).toEqual([1, 2, 4, 7, 12, 20, 33]);
-  expect(lv.map(sec.cost)).toEqual([20, 40, 80, 160, 320, 640, 1280]);
-  expect(lv.map(tap.value)).toEqual([1, 2, 3, 5, 8, 13, 21]);
-  expect(lv.map(tap.cost)).toEqual([15, 30, 60, 120, 240, 480, 960]);
+  const lv = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+  expect(lv.map(sec.value)).toEqual([1, 2, 4, 7, 12, 20, 33, 54, 88, 143, 464, 752]);
+  expect(lv.map(tap.value)).toEqual([1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 288, 466]);
+  expect(lv.slice(0, 7).map(sec.cost)).toEqual([20, 40, 80, 160, 320, 640, 1280]);
+  expect(lv.slice(0, 7).map(tap.cost)).toEqual([15, 30, 60, 120, 240, 480, 960]);
+  expect([sec.value(20), tap.value(20), tap.value(30)]).toEqual([(28657 - 1) * 4, 17711 * 4, 2178309 * 8]);
 });
 
-test("a level never pays itself back faster than the one before (no runaway)", () => {
+test("a level pays back slower than the one before, but a tenth level pays back faster (and ten levels slower)", () => {
   for (const t of petOf("cat").tools) {
     const payback = (l: number) => t.cost(l) / (t.value(l + 1) - t.value(l));
-    for (let l = 3; l < 60; l++) expect(payback(l)).toBeGreaterThan(payback(l - 1));
+    for (let l = 3; l < 60; l++) {
+      if (l % 10 === 9) expect(payback(l), `level ${l + 1}`).toBeLessThan(payback(l - 1) / 2);
+      else expect(payback(l), `level ${l + 1}`).toBeGreaterThan(payback(l - 1));
+      expect(payback(l + 10), `level ${l + 11}`).toBeGreaterThan(payback(l) * 3);
+    }
   }
 });
 
@@ -81,6 +86,7 @@ test("two hours of greedy play stay finite and fit on screen", () => {
     }
     expect(Number.isFinite(s.coins)).toBe(true);
     expect(perSecond(s)).toBeLessThan(1e12);
+    expect(perSecond(s), "the tenth levels make it grow").toBeGreaterThan(1e9);
     expect(fmt(s.coins).length).toBeLessThanOrEqual(6);
     expect(fmtRate(perSecond(s)).length).toBeLessThanOrEqual(6);
   }

@@ -23,6 +23,7 @@ const PAGES: [string, Game, number][][] = [
   [["morning ko upa", play("ko", upa, { acc: { sun: 2, sunFrames: 0.1 * 72000, pets: ["cat", "upa"] } }), 0], ["day en mungge", play("en", { ...freshSlot("mungge"), coins: 9 }, { acc: { sun: 0, sunFrames: 0.35 * 72000, pets: ["cat", "mungge"] } }), 0], ["sunset ko mochi", play("ko", mochi, { acc: { sun: 1, sunFrames: 0.6 * 72000, pets: ["cat", "mochi"] } }), 0], ["night en cat", play("en", rich, { acc: { sun: 3, sunFrames: 0.85 * 72000, pets: ["cat"] } }), 0]],
   [["sunrise ko", play("ko", rich, { sunT: 0, acc: { sun: 5, sunFrames: 30, pets: ["cat"] } }), 40], ["sunrise en", play("en", upa, { sunT: 0, acc: { sun: 1, sunFrames: 30, pets: ["cat", "upa"] } }), 40], ["home night ko", { ...home("ko"), acc: { sun: 4, sunFrames: 0.9 * 72000, pets: ["cat", "mochi"] } }, 0], ["home day en", { ...home("en"), acc: { sun: 4, sunFrames: 0.3 * 72000, pets: ["cat", "mochi"] } }, 0]],
   [["closet ko", play("ko", rich, { panel: "closet", pick: "cape" }), 0], ["ask en", play("en", upa, { ask: true }), 0], ["jackpot ko", play("ko", upa, { pops: [{ x: 800, y: 380, n: 15, t: 0, idle: false, big: true }] }), 8], ["hud en", play("en", rich), 0]],
+  [["shop ko lv 10 next", play("ko", { ...rich, tools: [9, 9] }, { panel: "shop" }), 0], ["shop en lv 10 next", play("en", { ...rich, tools: [9, 9] }, { panel: "shop" }), 0], ["shop ko lv 30 next", play("ko", { ...rich, coins: 4.5e10, tools: [29, 29] }, { panel: "shop" }), 0], ["hud ko lv 40", play("ko", { ...rich, coins: 4.5e12, tools: [39, 40] }), 0]],
 ];
 
 function Sheet() {
