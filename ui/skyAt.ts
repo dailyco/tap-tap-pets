@@ -5,7 +5,7 @@ import { SUN_FRAMES } from "../state";
 export type Phase = "morning" | "day" | "sunset" | "night";
 export interface Sky { phase: Phase; bands: string[]; hills: [string, string]; sun: { x: number; y: number } | null; moon: { x: number; y: number } | null; stars: number }
 
-const LOOK: Record<Phase, { bands: string[]; hills: [string, string] }> = {
+export const LOOK: Record<Phase, { bands: string[]; hills: [string, string] }> = {
   morning: { bands: ["#5b6ee1", "#7a86e8", "#a99be8", "#d9a6d9", "#f7b7b0", "#ffd2a0"], hills: ["#7a6aa8", "#5a4f88"] },
   day: { bands: ["#3a8fe0", "#4aa3ec", "#62b6f2", "#7fc8f6", "#9fd8f8", "#c2e8fa"], hills: ["#5aa06e", "#3f8052"] },
   sunset: { bands: ["#2f1d5c", "#542c7f", "#8a3a8a", "#c94f7c", "#f2765c", "#ffb35c"], hills: ["#3b2566", "#2a1a4a"] },

@@ -92,7 +92,8 @@ ditto -c -k --keepParent "out/Tap Tap Pets.app" "out/Tap Tap Pets.zip"
 | `petShapes.ts`, `petArt.ts`, `art.ts` | 펫·아이콘·픽셀 폰트 그림 |
 | `layout.ts`, `ui/` | 화면 배치와 화면별 컴포넌트 |
 | `i18n.ts` | 한국어·영어 문구 |
-| `media/` | 효과음과 앱 아이콘 |
+| `media/` | 효과음, 앱 아이콘, 배경 그림(`media/bg`) |
+| `ui/scenery.ts`, `tools/` | 하늘·언덕·땅 그림 데이터와, 그걸 `media/bg` PNG로 만드는 도구(`bun tools/scenery.ts`) |
 | `sheets/` | 디자인 확인용 시트 |
 | `tests/` | `bun test` 테스트 |
 | `docs/superpowers/` | 설계 문서와 구현 계획 |
