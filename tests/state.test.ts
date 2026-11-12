@@ -44,7 +44,7 @@ test("broken data falls back", () => {
   expect(checkSlot({ pet: "dog" })).toBeNull();
   expect(checkSlot("nope")).toBeNull();
   expect(checkAccount({ sun: -3, pets: ["mochi", "x"] })).toEqual({ sun: 0, sunFrames: 0, pets: ["cat", "mochi"] });
-  expect(checkSettings({ lang: "fr", sound: false })).toEqual({ autosave: true, sound: false, lang: "ko" });
+  expect(checkSettings({ lang: "fr", sound: false })).toEqual({ autosave: true, sound: false, bgm: true, lang: "ko" });
   expect(checkSettings({ lang: "en" }).lang).toBe("en");
 });
 
@@ -66,3 +66,8 @@ test("a slot saved with two tools loads with the speed tool at its start", () =>
   expect(freshSlot("cat").tools).toEqual([0, 0, 0]);
 });
 
+test("settings: the music is on unless it was turned off (older saves have it on)", () => {
+  expect(DEFAULT_SETTINGS.bgm).toBe(true);
+  expect(checkSettings({ autosave: false, sound: true, lang: "en" }).bgm).toBe(true);
+  expect(checkSettings({ bgm: false }).bgm).toBe(false);
+});

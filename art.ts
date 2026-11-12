@@ -44,6 +44,8 @@ const CHECK = [".........w", "........ww", ".......ww.", "w.....ww..", "ww...ww.
 const GEAR = ["....mm....", ".m.mmmm.m.", "..mmmmmm..", ".mmm..mmm.", "mmm....mmm", "mmm....mmm", ".mmm..mmm.", "..mmmmmm..", ".m.mmmm.m.", "....mm...."];
 const SOUND = ["....m.....", "...mm...w.", "mmmmm.w..w", "mmmmm..w.w", "mmmmm..w.w", "mmmmm.w..w", "...mm...w.", "....m....."];
 const MUTE = ["....m.....", "...mm.....", "mmmmm.r..r", "mmmmm..rr.", "mmmmm..rr.", "mmmmm.r..r", "...mm.....", "....m....."];
+const NOTE = ["....mmmmm", "....mmmmm", "....m...m", "....m...m", "....m...m", ".mmmm.mmmm", "mmmmmmmmmm", "mmmm.mmmm.", ".mm...mm.."];
+const NOTE_OFF = ["....mmmmm", "....mmmmm", "....m...m", "r...m...r", ".r..m..r.", ".mrmm.rmm", "mmmrmrmmmm", "mmmmrmmmm.", ".mmr.rmm..", "..r...r..."];
 const DOWN = ["..yyyy..", "..yyyy..", "..yyyy..", "yyyyyyyy", ".yyyyyy.", "..yyyy..", "...yy..."];
 
 // the pets' tools, the sun and the bin
@@ -67,7 +69,7 @@ const TOOL_ICONS: Record<string, string[]> = {
 
 export const ICONS: Record<string, string[]> = {
   ribbon: RIBBON, cap: CAP, crown: CROWN, shades: SHADES, tee: TEE_ICON, cape: CAPE_ICON, scarf: SCARF_ICON,
-  pickaxe: PICK_ICON, gloves: GLOVE_ICON, house: HOUSE_ICON, disk: DISK_ICON, check: CHECK, gear: GEAR, sound: SOUND, mute: MUTE, bag: BAG_ICON, coin: COIN, arrow: ARROW, down: DOWN,
+  pickaxe: PICK_ICON, gloves: GLOVE_ICON, house: HOUSE_ICON, disk: DISK_ICON, check: CHECK, gear: GEAR, sound: SOUND, mute: MUTE, note: NOTE, "note-off": NOTE_OFF, bag: BAG_ICON, coin: COIN, arrow: ARROW, down: DOWN,
   ...TOOL_ICONS,
 };
 

@@ -5,6 +5,7 @@
 import { useEffect } from "react";
 import { Audio, Composition, Sequence, registerRoot, staticFile, useCurrentFrame, useGameEvents, useGameState, useInput } from "raea";
 import { INITIAL, step, type Game } from "./game";
+import { BGM_FRAMES } from "./music";
 import { deleteSlot, writeSlot, type SaveKey } from "./save";
 import { Screen } from "./ui/screen";
 
@@ -18,6 +19,8 @@ const SFX = {
   start: staticFile("sfx/start.wav"), save: staticFile("sfx/save.wav"), fanfare: staticFile("sfx/fanfare.wav"),
   sunrise: staticFile("sfx/sunrise.wav"), reveal: staticFile("sfx/reveal.wav"), jackpot: staticFile("sfx/jackpot.wav"), delete: staticFile("sfx/delete.wav"),
 };
+// the music (bgm.mjs), played round on the play screen while it's switched on (settings)
+const BGM = staticFile("bgm/loop.wav");
 
 function Sfx({ frames, src, volume, frame, live, g }: { frames: number[]; src: keyof typeof SFX; volume: number; frame: number; live: boolean; g: Game }) {
   if (!g.set.sound) return null;
@@ -85,6 +88,7 @@ export default function PixelPet() {
       <Sfx {...s} frames={jackpots} src="jackpot" volume={0.7} />
       <Sfx {...s} frames={deletes} src="delete" volume={0.6} />
       <Sfx {...s} frames={done} src="fanfare" volume={0.7} />
+      {g.phase === "play" && g.set.bgm ? <Audio src={BGM} loop endAt={BGM_FRAMES} volume={0.45} name="music" /> : null}
     </Screen>
   );
 }

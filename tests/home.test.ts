@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { makeInitial, petCard, slotSummary, step, type Game } from "../game";
-import { ASK_HOME, CONTINUE_BTN, DEL_CANCEL, DEL_OK, GEAR_HOME, LANG_EN, LANG_KO, LANG_ROW, NEW_BTN, PET_BUY, PET_CARDS, PET_CENTER, PETS_BTN, SAVE_BTN, SLOT_CARDS, SLOT_DELETE } from "../layout";
+import { ASK_HOME, BGM_ROW, CONTINUE_BTN, DEL_CANCEL, DEL_OK, GEAR_HOME, LANG_EN, LANG_KO, LANG_ROW, NEW_BTN, PET_BUY, PET_CARDS, PET_CENTER, PETS_BTN, SAVE_BTN, SLOT_CARDS, SLOT_DELETE } from "../layout";
 import { DEFAULT_SETTINGS, FRESH_ACCOUNT, freshSlot, type Loaded, type SlotData } from "../state";
 import { drive } from "./drive";
 
@@ -161,3 +161,12 @@ test("number keys pick or buy in the pets panels", () => {
   expect(g.reveal?.pet).toBe("mungge");
 });
 
+test("settings: the music switch turns the music off and on, and is kept", () => {
+  let g = drive(makeInitial(loaded()), { 5: { click: GEAR_HOME }, 20: { click: BGM_ROW } }, 40);
+  expect(g.set.bgm).toBe(false);
+  expect(g.setN).toBe(1);
+  expect(g.set.sound).toBe(true);
+  g = drive(g, { 40: { click: BGM_ROW } }, 20, 40);
+  expect(g.set.bgm).toBe(true);
+  expect(g.setN).toBe(2);
+});

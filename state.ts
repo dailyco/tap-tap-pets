@@ -24,7 +24,7 @@ export interface SlotData {
 export interface Account { sun: number; sunFrames: number; pets: PetId[] }
 
 export type Lang = "ko" | "en";
-export interface Settings { autosave: boolean; sound: boolean; lang: Lang }
+export interface Settings { autosave: boolean; sound: boolean; bgm: boolean; lang: Lang }
 
 /** a sunlight for every 20 minutes on the play screen, at 60 fps */
 export const SUN_FRAMES = 72_000;
@@ -32,7 +32,7 @@ export const SUN_FRAMES = 72_000;
 export const freshSlot = (pet: PetId): SlotData =>
   ({ pet, coins: 0, earned: 0, tools: [0, 0, 0], owned: [], wear: { hat: null, body: null, acc: null }, playFrames: 0 });
 export const FRESH_ACCOUNT: Account = { sun: 0, sunFrames: 0, pets: ["cat"] };
-export const DEFAULT_SETTINGS: Settings = { autosave: true, sound: true, lang: "ko" };
+export const DEFAULT_SETTINGS: Settings = { autosave: true, sound: true, bgm: true, lang: "ko" };
 
 export type Slots = [SlotData | null, SlotData | null, SlotData | null];
 /** firstRun: no account row on disk yet (this is the first run of this version): the old save moves only then */
@@ -88,6 +88,7 @@ export function checkSettings(raw: unknown): Settings {
   return {
     autosave: typeof r.autosave === "boolean" ? r.autosave : DEFAULT_SETTINGS.autosave,
     sound: typeof r.sound === "boolean" ? r.sound : DEFAULT_SETTINGS.sound,
+    bgm: typeof r.bgm === "boolean" ? r.bgm : DEFAULT_SETTINGS.bgm,
     lang: r.lang === "en" || r.lang === "ko" ? r.lang : DEFAULT_SETTINGS.lang,
   };
 }

@@ -40,10 +40,11 @@ export const BUY_BAR = rowBox(ITEMS.length);
 
 // ---- settings (both screens) ----
 export const GEAR_HOME = box(24, 28, 100, 92);
-export const SET_PANEL = box(440, 70, 720, 600);
-export const SET_ROW = box(476, 166, 648, 100);
-export const SOUND_ROW = box(476, 320, 648, 100);
-export const LANG_ROW = box(476, 474, 648, 100);
+export const SET_PANEL = box(440, 30, 720, 750);
+export const SET_ROW = box(476, 126, 648, 100);
+export const SOUND_ROW = box(476, 280, 648, 100);
+export const BGM_ROW = box(476, 434, 648, 100);
+export const LANG_ROW = box(476, 588, 648, 100);
 /** the language: two tabs side by side, the one picked lit */
 export const LANG_KO = box(LANG_ROW.x + LANG_ROW.w - 356, LANG_ROW.y + 16, 164, 68);
 export const LANG_EN = box(LANG_ROW.x + LANG_ROW.w - 184, LANG_ROW.y + 16, 164, 68);

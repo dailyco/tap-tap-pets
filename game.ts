@@ -6,7 +6,7 @@
 import type { FrameInput, Playtest } from "raea";
 import { ITEMS, itemOf } from "./items";
 import {
-  ASK_HOME, ASK_STAY, BUY_BAR, CLOSET_BTN, GROUND, CONTINUE_BTN, DEL_CANCEL, DEL_OK, DEL_PANEL, GEAR_HOME, GEAR_PLAY, LANG_EN, LANG_KO, LANG_ROW, NEW_BTN,
+  ASK_HOME, ASK_STAY, BGM_ROW, BUY_BAR, CLOSET_BTN, GROUND, CONTINUE_BTN, DEL_CANCEL, DEL_OK, DEL_PANEL, GEAR_HOME, GEAR_PLAY, LANG_EN, LANG_KO, LANG_ROW, NEW_BTN,
   PET_BOX, PET_BUY, PET_CARDS, PET_CENTER, PETS_BTN, PETS_PANEL, SAVE_BTN, SET_PANEL, SET_ROW, SHOP_BTN, SLOT_CARDS, SLOT_DELETE,
   SLOTS_PANEL, SOUND_ROW, WALK, inside, panelBox, petBoxAt, rowBox, toField, type Box,
 } from "./layout";
@@ -145,7 +145,7 @@ export function demoPointer(frame: number): { x: number; y: number; down: boolea
 
 // ---- the step ----
 type Action =
-  | { kind: "settings" } | { kind: "closeSettings" } | { kind: "toggleAuto" } | { kind: "toggleSound" } | { kind: "setLang"; lang: Lang }
+  | { kind: "settings" } | { kind: "closeSettings" } | { kind: "toggleAuto" } | { kind: "toggleSound" } | { kind: "toggleBgm" } | { kind: "setLang"; lang: Lang }
   // home
   | { kind: "openSlots"; mode: "continue" | "new" } | { kind: "slot"; slot: number } | { kind: "askDelete"; slot: number }
   | { kind: "confirm" } | { kind: "openPets" }
@@ -158,6 +158,7 @@ function hit(s: Game, x: number, y: number): Action | null {
   if (s.settings) {
     if (inside(SET_ROW, x, y)) return { kind: "toggleAuto" };
     if (inside(SOUND_ROW, x, y)) return { kind: "toggleSound" };
+    if (inside(BGM_ROW, x, y)) return { kind: "toggleBgm" };
     if (inside(LANG_KO, x, y)) return { kind: "setLang", lang: "ko" };
     if (inside(LANG_EN, x, y)) return { kind: "setLang", lang: "en" };
     if (inside(LANG_ROW, x, y)) return null;
@@ -242,13 +243,14 @@ export function step(s0: Game, input: FrameInput, frame: number): Game {
     Object.assign(g, { settings: true, panel: null, pick: null, opens: g.opens + 1 }); busy = true; action = null;
   } else if (action?.kind === "closeSettings") {
     Object.assign(g, { settings: false, closes: g.closes + 1 }); busy = true; action = null;
-  } else if (action?.kind === "toggleAuto" || action?.kind === "toggleSound" || action?.kind === "setLang") {
+  } else if (action?.kind === "toggleAuto" || action?.kind === "toggleSound" || action?.kind === "toggleBgm" || action?.kind === "setLang") {
     const set = { ...g.set };
     if (action.kind === "toggleAuto") set.autosave = !set.autosave;
     if (action.kind === "toggleSound") { set.sound = !set.sound; g.soundT = now; }
+    if (action.kind === "toggleBgm") set.bgm = !set.bgm;
     if (action.kind === "setLang") set.lang = action.lang;
     // picking the language already picked changes nothing (and writes nothing)
-    if (set.autosave !== g.set.autosave || set.sound !== g.set.sound || set.lang !== g.set.lang) {
+    if (set.autosave !== g.set.autosave || set.sound !== g.set.sound || set.bgm !== g.set.bgm || set.lang !== g.set.lang) {
       Object.assign(g, { set, setN: g.setN + 1, toggles: g.toggles + 1 });
     }
     busy = true; action = null;

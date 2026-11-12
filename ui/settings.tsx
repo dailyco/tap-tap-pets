@@ -1,8 +1,8 @@
-// The settings: auto save, sound and language, each a row you click to switch.
+// The settings: auto save, sound effects, music and language, each a row you click to switch.
 import { C } from "../art";
 import type { Game } from "../game";
 import { t } from "../i18n";
-import { FH, FW, LANG_EN, LANG_KO, LANG_ROW, SET_PANEL, SET_ROW, SOUND_ROW, type Box } from "../layout";
+import { BGM_ROW, FH, FW, LANG_EN, LANG_KO, LANG_ROW, SET_PANEL, SET_ROW, SOUND_ROW, type Box } from "../layout";
 import { Dim, FitIcon, Frame, Label, PixelButton, Pixels, UI, over, rect } from "./pixels";
 
 export function GearButton({ g, box }: { g: Game; box: Box }) {
@@ -67,6 +67,7 @@ export function Settings({ g }: { g: Game }) {
       <Label s={t(L, "settings")} px={6} x={SET_PANEL.x + 112} y={SET_PANEL.y + 34} color={C.gold} />
       <Row g={g} r={SET_ROW} iconName="disk" label={t(L, "autoSave")} on={g.set.autosave} value={onOff(g.set.autosave)} says={t(L, g.set.autosave ? "autoSave.on" : "autoSave.off")} />
       <Row g={g} r={SOUND_ROW} iconName={g.set.sound ? "sound" : "mute"} label={t(L, "sound")} on={g.set.sound} value={onOff(g.set.sound)} says={t(L, g.set.sound ? "sound.on" : "sound.off")} />
+      <Row g={g} r={BGM_ROW} iconName={g.set.bgm ? "note" : "note-off"} label={t(L, "bgm")} on={g.set.bgm} value={onOff(g.set.bgm)} says={t(L, g.set.bgm ? "bgm.on" : "bgm.off")} />
       <LangRow g={g} />
     </>
   );
