@@ -1,5 +1,6 @@
 // The world behind the pet, through the day: the sky and the land as pictures by phase (ui/scenery.ts drawn into
 // media/bg), the sun or the moon on its arc between them, the stars at night.
+import { memo } from "react";
 import { staticFile } from "raea";
 import type { Rect } from "../art";
 import { FH, FW } from "../layout";
@@ -66,16 +67,22 @@ function starRects(frame: number, n: number): Rect[] {
 
 export function Scene({ frame, sunFrames }: { frame: number; sunFrames: number }) {
   const sky = skyAt(sunFrames);
+  const body = sky.sun ?? sky.moon;
   // twinkling on fours: the frames between are the same picture (see Pops)
-  const stars = sky.stars ? starRects(frame - (frame % 4), sky.stars) : [];
-  const body = sky.sun ? { rects: SUN, ...sky.sun } : sky.moon ? { rects: MOON, ...sky.moon } : null;
+  return <SceneView phase={sky.phase} stars={sky.stars ? starRects(frame - (frame % 4), sky.stars) : NO_STARS} moon={!sky.sun} x={body?.x ?? -1} y={body?.y ?? -1} />;
+}
+
+const NO_STARS: Rect[] = [];
+
+/** the world as it looks: drawn again only when the phase, the stars or the sun's or moon's spot change */
+const SceneView = memo(function SceneView({ phase, stars, moon, x, y }: { phase: Phase; stars: Rect[]; moon: boolean; x: number; y: number }) {
   // the sky, then what's in it, then the land in front (the sun sets behind the hills)
   return (
     <>
-      <Picture src={BG[sky.phase].sky} />
+      <Picture src={BG[phase].sky} />
       {stars.length ? <Pixels rects={stars} px={1} x={0} y={0} w={FW} h={FH} /> : null}
-      {body ? <Pixels rects={body.rects} px={1} x={body.x - BODY} y={body.y - BODY} /> : null}
-      <Picture src={BG[sky.phase].land} />
+      {x >= 0 ? <Pixels rects={moon ? MOON : SUN} px={1} x={x - BODY} y={y - BODY} /> : null}
+      <Picture src={BG[phase].land} />
     </>
   );
-}
+});

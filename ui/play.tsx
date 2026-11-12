@@ -1,7 +1,8 @@
 // The play screen's parts: the HUD, the buttons along the top, the SHOP (the pet's own tools), the CLOSET, the
 // question after a save, what floats up, the SAVED note and the demo's cursor.
+import { memo } from "react";
 import { C, fmt, fmtRate, textWidth } from "../art";
-import { SUN_FRAMES } from "../state";
+import { SUN_FRAMES, type Lang } from "../state";
 import { canDress, canUpgrade, pickedItem, type Game } from "../game";
 import { t } from "../i18n";
 import { ITEMS } from "../items";
@@ -11,19 +12,29 @@ import { Badge, Dim, FitIcon, Frame, Icon, Label, PixelButton, Pixels, UI, over,
 import { GearButton } from "./settings";
 
 export function Hud({ g, frame }: { g: Game; frame: number }) {
-  const L = g.set.lang;
   const def = petOf(g.p.pet);
+  return (
+    <HudView lang={g.set.lang} coins={fmt(g.p.coins)} perSec={`+${fmtRate(perSecond(g.p))}`} perTap={`+${fmtRate(tapBase(g.p))}`}
+      secIcon={def.tools[0].icon} tapIcon={def.tools[1].icon} sun={g.acc.sun} style={`${g.p.owned.length}/${ITEMS.length}`}
+      day={Math.floor((g.acc.sunFrames / SUN_FRAMES) * DAY_W)} bump={frame - g.tapT >= 0 && frame - g.tapT < 6} />
+  );
+}
+
+/** how far the day has come toward the next sunlight, beside the sunlight count */
+const DAY_W = 110;
+
+/** the HUD as it reads: drawn again only when a number on it changes */
+const HudView = memo(function HudView({ lang: L, coins, perSec, perTap, secIcon, tapIcon, sun, style, day, bump }: {
+  lang: Lang; coins: string; perSec: string; perTap: string; secIcon: string; tapIcon: string; sun: number; style: string; day: number; bump: boolean;
+}) {
   const cells = [
-    { x: 60, icon: "coin", label: t(L, "hud.coins"), value: fmt(g.p.coins), color: C.gold },
-    { x: 440, icon: def.tools[0].icon, label: t(L, "hud.perSec"), value: `+${fmtRate(perSecond(g.p))}`, color: C.white },
-    { x: 820, icon: def.tools[1].icon, label: t(L, "hud.perTap"), value: `+${fmtRate(tapBase(g.p))}`, color: C.white },
-    { x: 1200, icon: "sun", label: t(L, "hud.sun"), value: String(g.acc.sun), color: C.gold },
-    { x: 1580, icon: "tee", label: t(L, "hud.style"), value: `${g.p.owned.length}/${ITEMS.length}`, color: C.white },
+    { x: 60, icon: "coin", label: t(L, "hud.coins"), value: coins, color: C.gold },
+    { x: 440, icon: secIcon, label: t(L, "hud.perSec"), value: perSec, color: C.white },
+    { x: 820, icon: tapIcon, label: t(L, "hud.perTap"), value: perTap, color: C.white },
+    { x: 1200, icon: "sun", label: t(L, "hud.sun"), value: String(sun), color: C.gold },
+    { x: 1580, icon: "tee", label: t(L, "hud.style"), value: style, color: C.white },
   ];
-  // how far the day has come toward the next sunlight, beside the sunlight count
-  const dayW = 110, day = Math.floor((g.acc.sunFrames / SUN_FRAMES) * dayW);
-  const barX = 1200 + 84 + textWidth(String(g.acc.sun), 7) + 20;
-  const bump = frame - g.tapT >= 0 && frame - g.tapT < 6;
+  const barX = 1200 + 84 + textWidth(String(sun), 7) + 20;
   return (
     <>
       {cells.map((c, i) => (
@@ -33,10 +44,10 @@ export function Hud({ g, frame }: { g: Game; frame: number }) {
           <Label s={c.value} px={i === 0 && bump ? 8 : 7} x={c.x + 84} y={i === 0 && bump ? 56 : 60} color={c.color} />
         </span>
       ))}
-      <Pixels rects={[rect(0, 0, dayW + 8, 22, C.ink), rect(4, 4, dayW, 14, UI.off), rect(4, 4, day, 14, C.gold)]} px={1} x={barX} y={76} />
+      <Pixels rects={[rect(0, 0, DAY_W + 8, 22, C.ink), rect(4, 4, DAY_W, 14, UI.off), rect(4, 4, day, 14, C.gold)]} px={1} x={barX} y={76} />
     </>
   );
-}
+});
 
 export function Hints({ g }: { g: Game }) {
   const L = g.set.lang;
@@ -60,7 +71,7 @@ export function TopButtons({ g, frame }: { g: Game; frame: number }) {
             </>
           )}
         </PixelButton>
-        {badge && !open ? <Badge x={box.x + box.w - 22} y={box.y - 14} frame={frame} /> : null}
+        {badge && !open ? <Badge x={box.x + box.w - 22} y={box.y - 14} frame={frame - (frame % 10)} /> : null}
       </>
     );
   };

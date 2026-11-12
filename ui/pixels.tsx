@@ -1,6 +1,6 @@
 // The drawing kit every screen uses: pixels as SVG paths (one per colour), text in the pixel font or, for Korean, the
 // Mac's Korean font with the same hard shadow, icons, chunky buttons, panels.
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import { C, canDraw, icon, text, textWidth, type Rect } from "../art";
 import type { Game } from "../game";
 import type { Box } from "../layout";
@@ -28,7 +28,7 @@ function paths(rects: Rect[]) {
   return kept;
 }
 
-export function Pixels({ rects, px, x, y, color, opacity, w: forceW, h: forceH, flip }: {
+function PixelsDrawn({ rects, px, x, y, color, opacity, w: forceW, h: forceH, flip }: {
   rects: Rect[]; px: number; x: number; y: number; color?: string; opacity?: number; w?: number; h?: number; flip?: boolean;
 }) {
   const { paths: ps, w: rw, h: rh } = paths(rects);
@@ -47,7 +47,7 @@ export const over = (g: Game, b: Box) => !!g.cursor && g.cursor.x >= b.x && g.cu
 type Align = "left" | "center" | "right";
 
 /** text in the pixel font with a hard drop shadow; x is the left edge, the middle or the right edge by `align` */
-export function PText({ s, px, x, y, color = C.white, align = "left", opacity, shadow = true }: {
+function PTextDrawn({ s, px, x, y, color = C.white, align = "left", opacity, shadow = true }: {
   s: string; px: number; x: number; y: number; color?: string; align?: Align; opacity?: number; shadow?: boolean;
 }) {
   const w = textWidth(s, px);
@@ -66,7 +66,7 @@ export const textW = (s: string, px: number) =>
   canDraw(s) ? textWidth(s, px) : Math.ceil([...s].reduce((n, ch) => n + (/[\uac00-\ud7a3\u3131-\u318e]/.test(ch) ? 1.05 : ch === " " ? 0.33 : 0.65), 0) * Math.round(px * 8.2));
 
 /** any text: the pixel font when it can draw it, else the Korean font at the same size, shadowed the same way */
-export function Label({ s, px, x, y, color = C.white, align = "left", opacity, shadow = true }: {
+function LabelDrawn({ s, px, x, y, color = C.white, align = "left", opacity, shadow = true }: {
   s: string; px: number; x: number; y: number; color?: string; align?: Align; opacity?: number; shadow?: boolean;
 }) {
   if (canDraw(s)) return <PText s={s} px={px} x={x} y={y} color={color} align={align} opacity={opacity} shadow={shadow} />;
@@ -86,12 +86,12 @@ export function Label({ s, px, x, y, color = C.white, align = "left", opacity, s
   );
 }
 
-export function Icon({ name, px, x, y, opacity }: { name: string; px: number; x: number; y: number; opacity?: number }) {
+function IconDrawn({ name, px, x, y, opacity }: { name: string; px: number; x: number; y: number; opacity?: number }) {
   return <Pixels rects={icon(name).rects} px={px} x={x} y={y} opacity={opacity} />;
 }
 
 /** an icon scaled to fit a square box, centred in it */
-export function FitIcon({ name, box, x, y, opacity }: { name: string; box: number; x: number; y: number; opacity?: number }) {
+function FitIconDrawn({ name, box, x, y, opacity }: { name: string; box: number; x: number; y: number; opacity?: number }) {
   const { w, h } = icon(name);
   const px = Math.max(1, Math.floor(box / Math.max(w, h)));
   return <Icon name={name} px={px} x={x + Math.round((box - w * px) / 2)} y={y + Math.round((box - h * px) / 2)} opacity={opacity} />;
@@ -115,7 +115,7 @@ export function PixelButton({ g, box, fill, shade, children, dx = 0 }: {
   );
 }
 
-export function Badge({ x, y, frame }: { x: number; y: number; frame: number }) {
+function BadgeDrawn({ x, y, frame }: { x: number; y: number; frame: number }) {
   const bounce = Math.floor(frame / 10) % 2 ? -4 : 0;
   return (
     <>
@@ -126,9 +126,20 @@ export function Badge({ x, y, frame }: { x: number; y: number; frame: number }) 
 }
 
 /** a panel: an ink rim, a coloured border, the panel's ground */
-export function Frame({ box, border = UI.rim }: { box: Box; border?: string }) {
+function FrameDrawn({ box, border = UI.rim }: { box: Box; border?: string }) {
   return <Pixels rects={[rect(0, 0, box.w, box.h, C.ink), rect(6, 6, box.w - 12, box.h - 12, border), rect(12, 12, box.w - 24, box.h - 24, UI.panel)]} px={1} x={box.x} y={box.y} />;
 }
 
 /** the field dimmed behind a box that's asking something */
 export const Dim = ({ w, h }: { w: number; h: number }) => <Pixels rects={[rect(0, 0, w, h, C.ink)]} px={1} x={0} y={0} opacity={0.55} />;
+
+// Each drawing redone only when what it's given changes: the screen is made again every frame, and most of it (the
+// pet, the text, the icons, all from kept rects) is the same picture as the frame before. Skipping those keeps a
+// frame's work small (React's render, and the page raea draws, which a frame without changes doesn't paint).
+export const Pixels = memo(PixelsDrawn);
+export const PText = memo(PTextDrawn);
+export const Label = memo(LabelDrawn);
+export const Icon = memo(IconDrawn);
+export const FitIcon = memo(FitIconDrawn);
+export const Badge = memo(BadgeDrawn);
+export const Frame = memo(FrameDrawn);
