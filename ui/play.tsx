@@ -8,7 +8,7 @@ import { t } from "../i18n";
 import { ITEMS } from "../items";
 import { ASK, ASK_HOME, ASK_STAY, BUY_BAR, CLOSET_BTN, FH, FW, GEAR_PLAY, GROUND, SAVE_BTN, SHOP_BTN, panelBox, rowBox, type Box } from "../layout";
 import { perSecond, petOf, tapBase } from "../pets";
-import { Badge, Dim, FitIcon, Frame, Icon, Label, PixelButton, Pixels, UI, over, rect, textW } from "./pixels";
+import { Badge, Dim, FitIcon, Frame, Icon, Label, PixelButton, Pixels, UI, onFours, onTwos, over, rect, textW } from "./pixels";
 import { GearButton } from "./settings";
 
 export function Hud({ g, frame }: { g: Game; frame: number }) {
@@ -16,7 +16,7 @@ export function Hud({ g, frame }: { g: Game; frame: number }) {
   return (
     <HudView lang={g.set.lang} coins={fmt(g.p.coins)} perSec={`+${fmtRate(perSecond(g.p))}`} perTap={`+${fmtRate(tapBase(g.p))}`}
       secIcon={def.tools[0].icon} tapIcon={def.tools[1].icon} sun={g.acc.sun} style={`${g.p.owned.length}/${ITEMS.length}`}
-      day={Math.floor((g.acc.sunFrames / SUN_FRAMES) * DAY_W)} bump={frame - g.tapT >= 0 && frame - g.tapT < 6} />
+      day={Math.floor((g.acc.sunFrames / SUN_FRAMES) * DAY_W)} bump={onTwos(frame) - g.tapT >= 0 && onTwos(frame) - g.tapT < 6} />
   );
 }
 
@@ -221,28 +221,22 @@ export function Ask({ g }: { g: Game }) {
   );
 }
 
-/** an age stepped down to every `n` frames: what floats moves on twos and fours, as pixel art does, so the frames
- *  between leave the screen as it was and live play doesn't paint them again (raea's Live::draw) */
-const stepped = (a: number, n: number) => a - (a % n);
-
 /** what floats up: +N from a tap (big and gold for a jackpot), the second's coins, coin chips */
 export function Pops({ g, frame }: { g: Game; frame: number }) {
   const L = g.set.lang;
   return (
     <>
       {g.chips.map((c, i) => {
-        const a = stepped(frame - c.t, 2);
+        const a = onTwos(frame) - c.t;
         if (a < 0 || a > 40) return null;
         const y = c.y + c.vy * a + 0.45 * a * a;
         if (y > GROUND) return null;
         return <Icon key={"c" + c.t + i} name="coin" px={2} x={Math.round(c.x + c.vx * a - 10)} y={Math.round(y - 10)} />;
       })}
       {g.pops.map((p, i) => {
-        const age = frame - p.t;
-        if (age < 0) return null;
         if (p.idle) {
-          const a = stepped(age, 4);
-          if (a > 60) return null;
+          const a = onFours(frame) - p.t;
+          if (a < 0 || a > 60) return null;
           const o = a < 40 ? 1 : 1 - (a - 40) / 20;
           const y = Math.round(p.y - a * 0.9);
           return (
@@ -252,8 +246,8 @@ export function Pops({ g, frame }: { g: Game; frame: number }) {
             </span>
           );
         }
-        const a = stepped(age, 2);
-        if (a > 45) return null;
+        const a = onTwos(frame) - p.t;
+        if (a < 0 || a > 45) return null;
         const o = a < 30 ? 1 : 1 - (a - 30) / 15;
         return (
           <span key={"p" + p.t + i}>

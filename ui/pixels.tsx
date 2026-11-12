@@ -42,6 +42,11 @@ function PixelsDrawn({ rects, px, x, y, color, opacity, w: forceW, h: forceH, fl
 }
 
 export const rect = (x: number, y: number, w: number, h: number, c: string): Rect => [x, y, w, h, c];
+/** a frame stepped down to the last even one (or the last fourth): what moves is drawn on the same frames, so the
+ *  frames between leave the screen as it was and live play doesn't paint them again (raea's Live::draw). Counted
+ *  from the screen's frame, never from when each thing started: started on odd frames, they'd fill the odd ones */
+export const onTwos = (frame: number) => frame - (frame % 2);
+export const onFours = (frame: number) => frame - (frame % 4);
 export const over = (g: Game, b: Box) => !!g.cursor && g.cursor.x >= b.x && g.cursor.x < b.x + b.w && g.cursor.y >= b.y && g.cursor.y < b.y + b.h;
 
 type Align = "left" | "center" | "right";

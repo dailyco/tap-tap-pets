@@ -7,7 +7,7 @@ import { GROUND, PET_CENTER } from "../layout";
 import { PET_W, petRects, type Eyes, type Pose } from "../petArt";
 import type { PetId, Wear } from "../state";
 import { C } from "../art";
-import { Label, Pixels, rect } from "./pixels";
+import { Label, Pixels, onTwos, rect } from "./pixels";
 
 export const PX = 9;
 /** the canvas's row 43 (just under the feet' outline) stands on the grass */
@@ -19,7 +19,8 @@ export function Pet({ g, frame }: { g: Game; frame: number }) {
   const play = g.phase === "play";
   const pet = play ? g.p.pet : g.lastPet;
   const wear = play ? shownWear(g) : (g.cur !== null ? g.slots[g.cur]?.wear : null) ?? NONE;
-  const age = play ? frame - g.tapT : -1;
+  // the tap's squash and hop on even frames (onTwos)
+  const age = play ? onTwos(frame) - g.tapT : -1;
   const walk = play && g.walking ? Math.floor(frame / 6) % 2 : -1;
   const pose: Pose = age >= 0 && age < 5 ? "squash" : age >= 5 && age < 10 ? "up" : walk >= 0 ? (walk ? "up" : "down") : BREATH[Math.floor(frame / 24) % 4];
   const eyes: Eyes = age >= 0 && age < 26 ? "happy" : frame % 200 < 6 ? "blink" : "open";
