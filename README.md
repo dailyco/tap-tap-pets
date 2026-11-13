@@ -20,7 +20,7 @@
 <p align="center">
   <img src="docs/images/home.png" width="32%" alt="홈 화면">
   <img src="docs/images/play.png" width="32%" alt="플레이 화면">
-  <img src="docs/images/closet.png" width="32%" alt="옷장에서 입어 보기">
+  <img src="docs/images/shop.png" width="32%" alt="상점: 펫마다 도구 세 개">
 </p>
 
 ## 내려받기
@@ -130,6 +130,6 @@ ditto -c -k --keepParent "out/Tap Tap Pets.app" "out/Tap Tap Pets.zip"
 | `media/` | 효과음, 배경음악(`media/bgm`), 앱 아이콘, 배경 그림(`media/bg`) |
 | `sfx.mjs`, `bgm.mjs`, `music.ts` | 효과음과 배경음악을 만드는 스크립트(`node bgm.mjs`), 음악 루프 길이 |
 | `ui/scenery.ts`, `tools/` | 하늘·언덕·땅 그림 데이터와, 그걸 `media/bg` PNG로 만드는 도구(`bun tools/scenery.ts`) |
-| `sheets/` | 디자인 확인용 시트 |
+| `sheets/` | 디자인 확인용 시트, README 스크린샷(`raea render sheets/readme-shots.tsx --at 0,1,2`) |
 | `tests/` | `bun test` 테스트 |
 | `docs/superpowers/` | 설계 문서와 구현 계획 |
