@@ -1,14 +1,36 @@
-# Tap Tap Pets
+<p align="center">
+  <img src="media/app/icon.png" width="112" alt="Tap Tap Pets 아이콘">
+</p>
 
-톡톡 두드려 코인을 모으고, 햇살로 새 친구를 데려와 귀엽게 꾸미는 픽셀 방치형 펫 게임.
+<h1 align="center">Tap Tap Pets</h1>
 
-<p>
+<p align="center">
+  톡톡 두드려 코인을 모으고,<br>
+  햇살로 새 친구를 데려와 귀엽게 꾸미는 픽셀 방치형 펫 게임
+</p>
+
+<p align="center">
+  <a href="https://github.com/dailyco/tap-tap-pets/releases/latest"><b>Mac용 내려받기</b></a>
+  ·
+  <a href="https://yutopia.dev/tap-tap-pets">소개 페이지</a>
+  ·
+  <a href="#english">English</a>
+</p>
+
+<p align="center">
   <img src="docs/images/home.png" width="32%" alt="홈 화면">
   <img src="docs/images/play.png" width="32%" alt="플레이 화면">
   <img src="docs/images/closet.png" width="32%" alt="옷장에서 입어 보기">
 </p>
 
-raea로 만든 게임입니다. React(TSX)로 화면을 쓰고 raea가 GPU로 그립니다.
+## 내려받기
+
+1. [Releases](https://github.com/dailyco/tap-tap-pets/releases/latest)에서 `Tap.Tap.Pets.zip`을 내려받아요.
+2. zip을 열면 나오는 **Tap Tap Pets** 앱을 응용 프로그램 폴더로 옮겨요.
+3. 처음 열 때 "확인되지 않은 개발자" 경고가 뜨면, 시스템 설정 → 개인정보 보호 및 보안 아래쪽의 **그래도 열기**를 눌러요. 한 번 열고 나면 다음부터는 바로 열려요.
+
+- Apple Silicon(M1 이후) Mac에서만 실행돼요. 인텔 Mac과 Windows는 아직 지원하지 않아요.
+- 무료예요. 개인이 만든 앱이라 Apple 서명이 없어서 처음 한 번만 위 과정을 거쳐야 해요.
 
 ## 게임 방법
 
@@ -36,17 +58,30 @@ raea로 만든 게임입니다. React(TSX)로 화면을 쓰고 raea가 GPU로 �
 | 상점·옷장 | 줄 클릭(옷장은 입어 보기) | 숫자 키로 고르기, 옷장에서 `Enter` 구매 |
 | 창·드롭다운 | 바깥 클릭으로 닫기 | `Esc` |
 
-## 실행
+게임은 내 Mac 안(`~/Library/Application Support/pixel-pet-save.db`)에 저장돼요.
 
-raea CLI와 [bun](https://bun.sh)이 필요합니다.
+## English
+
+**Tap Tap Pets** is a cozy pixel idle pet game for Apple Silicon Macs. Tap your pet to collect coins, level up its
+tools, dress it up in the closet, and gather sunlight to bring home new friends. Switch the language to English in
+Settings.
+
+[Download for Mac](https://github.com/dailyco/tap-tap-pets/releases/latest) — unzip, move the app to Applications,
+and the first time macOS warns about an unidentified developer, choose **Open Anyway** in System Settings → Privacy &
+Security.
+
+---
+
+## 개발
+
+raea로 만든 게임이에요. React(TSX)로 화면을 쓰고 raea가 GPU로 그려요. 실행하려면 raea CLI와 [bun](https://bun.sh)이
+필요해요.
 
 ```sh
 raea play edit.tsx --size 1600x900   # 창을 띄워 바로 플레이
 bun test                              # 경제·저장·입력 로직 테스트
 raea check edit.tsx --quick           # 화면 검사
 ```
-
-저장 파일은 `~/Library/Application Support/pixel-pet-save.db`(SQLite)에 생깁니다.
 
 ### 지금 세이브는 두고 새로 시작하기
 
@@ -66,7 +101,7 @@ TAP_TAP_PETS_SAVE="$PWD/saves/fresh.db" "out/Tap Tap Pets.app/Contents/MacOS/Tap
 
 ### 맥 앱 만들기
 
-raea 레포에서 게임 플레이어를 한 번 빌드한 뒤 앱으로 묶습니다.
+raea 레포에서 게임 플레이어를 한 번 빌드한 뒤 앱으로 묶어요.
 
 ```sh
 # raea 레포에서
@@ -79,9 +114,9 @@ raea export-game edit.tsx -o "out/Tap Tap Pets.app" --target mac-app \
 ditto -c -k --keepParent "out/Tap Tap Pets.app" "out/Tap Tap Pets.zip"
 ```
 
-서명하지 않은 앱이라 처음 열 때는 Finder에서 우클릭 → 열기로 엽니다.
+만든 zip은 [Releases](https://github.com/dailyco/tap-tap-pets/releases)에 올려요.
 
-## 파일
+### 파일
 
 | 파일 | 내용 |
 | --- | --- |
