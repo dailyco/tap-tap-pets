@@ -75,7 +75,8 @@ Security.
 ## 개발
 
 raea로 만든 게임이에요. React(TSX)로 화면을 쓰고 raea가 GPU로 그려요. 실행하려면 raea CLI와 [bun](https://bun.sh)이
-필요해요.
+필요해요. raea는 [docs/raea-patches](docs/raea-patches)의 패치(창이 쓸데없이 다시 그리지 않게 해 발열을 줄여요)를 적용해
+빌드한 걸 써요.
 
 ```sh
 raea play edit.tsx --size 1600x900   # 창을 띄워 바로 플레이
@@ -101,10 +102,13 @@ TAP_TAP_PETS_SAVE="$PWD/saves/fresh.db" "out/Tap Tap Pets.app/Contents/MacOS/Tap
 
 ### 맥 앱 만들기
 
-raea 레포에서 게임 플레이어를 한 번 빌드한 뒤 앱으로 묶어요.
+raea 레포에 패치를 적용하고 게임 플레이어를 빌드한 뒤 앱으로 묶어요. 패치 없이 빌드한 앱은 창이 디스플레이
+주사율마다(가려지면 초당 1,000번 넘게) 다시 그려서 노트북이 뜨거워져요.
 
 ```sh
-# raea 레포에서
+# raea 레포에서 (패치는 한 번만)
+git apply <이 레포>/docs/raea-patches/live-frame-pacing.patch
+cargo build --release -p raea-cli
 cargo build --profile game -p raea-app-game --bin raea-game --features player
 
 # 이 레포에서
